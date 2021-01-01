@@ -13,12 +13,14 @@ class MessageGenerator:
 
     async def message_sender(self, ctx, embed: discord.Embed, color=None) -> discord.Message:
         """Generates the same embed for every command from a dict
+        :type ctx: commands.context
+        :type color: object
         :type embed: discord.Embed
         """
         if color is None:
-            embed.color = discord.Color(self.color)
+            embed.colour = discord.Color(self.color)
         else:
-            embed.color = color
+            embed.colour = color
         return await ctx.send(self.msg_gen(ctx), embed=embed)
 
     async def error_msg(self, ctx, msg) -> discord.Message:

@@ -33,7 +33,7 @@ class UserSettings(commands.Cog):
     @cmd_group_set.command(name="prefix")
     async def cmd_set_prefix(self, ctx, action=None, new_prefix: str = False):
         """Change the bots prefix. Action can be either add or remove"""
-        prefix_ = await self.db.get_user_information(ctx.author.id).distinct("prefix")
+        prefix_ = await self.db.get_user_information_global(ctx.author.id).distinct("prefix")
         # Check if there are already 10 prefixes added
         if len(prefix_) > 10:
             message = "You can only add up to 10 custom prefixes. Please remove one " \

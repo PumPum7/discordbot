@@ -1,7 +1,8 @@
 import asyncio
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import random
+import datetime
 
 import bot_settings
 from functions import func_msg_gen, func_economy, func_database
@@ -21,7 +22,7 @@ class Gambling(commands.Cog):
         )
         self.bj_embed = bj_embed
         self.udb = func_database.UserDatabase()
-        self.cur = bot_settings.currency_name
+        self.cur = bot_settings.currency_name  # TODO: change to use server setting
 
     @commands.command(name="balance", aliases=["wallet", "bal"])
     async def cmd_balance(self, ctx, user: discord.Member = None):
@@ -96,7 +97,7 @@ class Gambling(commands.Cog):
                                                          user == ctx.author and reaction.emoji in self.bj_reactions.keys(),
                                                          timeout=20.0)
             except asyncio.TimeoutError:
-                await self.udb.edit_money_global(ctx.author.id, -bet)
+                await self.udb.edit_money(ctx.author.id, ctx.guild.id, -bet)
                 return await self.msg.error_msg(ctx, "You only have 20 seconds to react."
                                                      "The money has been deducted from your balance.")
             # blackjack reaction handler
@@ -124,8 +125,36 @@ class Gambling(commands.Cog):
         embed = self.blackjack_msg_updater(msg, hand)
         embed.description = text.format(bet_edited)
         embed.color = discord.Color.green() if win else discord.Color.red()
-        await self.udb.edit_money_global(ctx.author.id, bet_edited)
+        await self.udb.edit_money(ctx.author.id, ctx.guild.id, bet_edited)
         return await msg.edit(embed=embed, content=msg.content)
+
+    @commands.command(name="claim", aliases=["work"])
+    async def cmd_daily(self, ctx) -> discord.Message:
+        # TODO: change to use server setting
+        amount = bot_settings.daily_amount
+        cooldown = 24
+        user = ctx.author
+        # check if they cna claim it again
+        last_claim = await self.udb.get_user_information(user.id).distinct("claimed_daily")
+        if not last_claim:
+            claimed_daily = False
+        else:
+            claimed_daily = last_claim[0] + datetime.timedelta(hours=cooldown) > datetime.datetime.utcnow()
+        embed = discord.Embed()
+        if not claimed_daily:
+            await self.udb.claim_daily(user.id, ctx.guild.id, amount)
+            msg = f"{amount}{self.cur} claimed!"
+            colour = discord.Color.green()
+            next_claim = datetime.datetime.utcnow() + datetime.timedelta(hours=cooldown)
+        else:
+            next_claim = (last_claim[0] + datetime.timedelta(hours=cooldown))
+            colour = discord.Color.red()
+            embed.title = ""
+            msg = "You have already claimed your credits."
+        embed.set_footer(text="Next claim:")
+        embed.timestamp = next_claim
+        embed.description = msg
+        return await self.msg.message_sender(ctx, embed, color=colour)
 
 
 def setup(bot):
