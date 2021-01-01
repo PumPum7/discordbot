@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 from functions import func_database, func_msg_gen
-import bot_settings as bset
 
 
 class UserSettings(commands.Cog):

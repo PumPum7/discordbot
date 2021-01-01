@@ -1,7 +1,6 @@
 import motor.motor_asyncio
 from pymongo import ReturnDocument
 import bot_settings
-import pymongo
 
 DEFAULTS = (bot_settings.database_password, bot_settings.database_username, bot_settings.database_default)
 

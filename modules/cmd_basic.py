@@ -1,4 +1,3 @@
-import discord
 from discord.ext import commands
 from functions import func_msg_gen
 
@@ -11,7 +10,7 @@ class BasicCommands(commands.Cog):
     @commands.command(name="ping")
     async def cmd_ping(self, ctx):
         """Pong!"""
-        await ctx.send(f"Pong! {round(self.bot.latency * 1000)}ms")
+        return await ctx.send(f"Pong! {round(self.bot.latency * 1000)}ms")
 
 
 def setup(bot):

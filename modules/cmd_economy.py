@@ -24,7 +24,7 @@ class Gambling(commands.Cog):
         self.cur = bot_settings.currency_name
 
     @commands.command(name="balance", aliases=["wallet", "bal"])
-    async def cmd_balance(self, ctx, user: discord.Member=None):
+    async def cmd_balance(self, ctx, user: discord.Member = None):
         if not user:
             user = ctx.author
         balance = await self.udb.get_user_information(user.id).distinct("balance")
@@ -39,7 +39,7 @@ class Gambling(commands.Cog):
         await self.msg.message_sender(ctx, embed)
 
     @staticmethod
-    def blackjack_msg_updater(msg, hand):
+    def blackjack_msg_updater(msg: discord.Message, hand: dict) -> discord.Embed:
         embed = msg.embeds[0]
         fields = embed.fields
         embed.clear_fields()
