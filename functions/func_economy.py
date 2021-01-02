@@ -1,16 +1,21 @@
 from discord.ext import commands
 
-from functions import func_database, func_errors
 import bot_settings as bs
+from functions import func_database, func_errors
 
 udb = func_database.UserDatabase()
 
 
 class GlobalMoney(commands.Converter):
-    async def convert(self, ctx, argument: int):
+    async def convert(self, ctx, argument: int) -> float:
+        """
+
+        :param ctx: commands.context
+        :type argument: int
+        """
         try:
-            argument = int(argument)
-        except:
+            argument: int = int(argument)
+        except Exception:
             raise commands.BadArgument
         if argument < 1:
             raise func_errors.EconomyError("You can't use a negative amount of currency for this action!")
@@ -34,42 +39,47 @@ class Card:
                          10: 'Ten', 11: 'Jack', 12: 'Queen', 13: 'King'}
         self.cardSuit = {'c': 'Clubs', 'h': 'Hearts', 's': 'Spades', 'd': 'Diamonds'}
 
-    def __str__(self):
+    @property
+    def __str__(self) -> str:
         return self.cardName[self.rank] + " Of " + self.cardSuit[self.suit]
 
-    def getRank(self):
+    def getRank(self) -> str:
+        """
+
+        :rtype: int
+        """
         return self.rank
 
-    def getSuit(self):
+    def getSuit(self) -> str:
         return self.suit
 
-    def BJValue(self):
+    def BJValue(self) -> int:
         if self.rank > 9:
             return 10
         else:
             return self.rank
 
 
-def bj_hand_counter(hand):
+def bj_hand_counter(hand) -> int:
     handCount = 0
     for card in hand:
         handCount += card.BJValue()
-    return (handCount)
+    return handCount
 
 
-def bj_string_generator(reactions):
+def bj_string_generator(reactions) -> str:
     bj_message = []
     for action in reactions.keys():
         bj_message.append(f"{reactions[action].capitalize()}: {action}\n")
     return "".join(bj_message)
 
 
-def bj_field_generator(cur_player, hands):
+def bj_field_generator(cur_player, hands) -> str:
     return f"Score: {bj_hand_counter(hands[cur_player])}\n" \
            f"Cards: {', '.join(str(i) for i in hands[cur_player])}"
 
 
-def bj_handle_bot_cards(hand, deck):
+def bj_handle_bot_cards(hand, deck) -> tuple:
     finished = False
     busted = False
     while not finished:
@@ -82,7 +92,14 @@ def bj_handle_bot_cards(hand, deck):
     return hand, deck, busted
 
 
-def bj_winner_handler(hand, playerBusted, botBusted, bet: float):
+def bj_winner_handler(hand, playerBusted: bool, botBusted: bool, bet: float) -> tuple:
+    """
+
+    :type botBusted: bool
+    :type bet: float
+    :type playerBusted: bool
+    :type hand: dict
+    """
     hand_human = bj_hand_counter(hand['human'])
     hand_bot = bj_hand_counter(hand['bot'])
     if playerBusted:

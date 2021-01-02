@@ -1,24 +1,25 @@
+from typing import Union, Any
+
 import discord
 from discord.ext import commands
 from functions import func_database, func_msg_gen
-import bot_settings as bset
 
 
 class UserSettings(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.db = func_database.UserDatabase()
+        self.udb = func_database.UserDatabase()
         self.msg = func_msg_gen.MessageGenerator()
 
     @commands.group(name="set", invoke_without_command=True)
-    async def cmd_group_set(self, ctx):
+    async def cmd_group_set(self, ctx) -> discord.Message:
         """Set commands"""
         embed = discord.Embed()
         embed.title = "User Settings"
         embed.add_field(name="Commands:", value="> set prefix <action> <prefix>")
-        await self.msg.message_sender(ctx, embed)
+        return await self.msg.message_sender(ctx, embed)
 
-    async def prefix_handler(self, action, new_prefix, ctx):
+    async def prefix_handler(self, action, new_prefix, ctx) -> Union[bool, tuple]:
         action = action.lower()
         if action == "add":
             action = True
@@ -28,13 +29,13 @@ class UserSettings(commands.Cog):
             msg = f"Successfully removed `{new_prefix}` from your prefixes!"
         else:
             return False
-        prefix = await self.db.edit_prefix(ctx.author.id, new_prefix, action)
+        prefix = await self.udb.edit_prefix(ctx.author.id, new_prefix, action)
         return prefix, msg
 
     @cmd_group_set.command(name="prefix")
     async def cmd_set_prefix(self, ctx, action=None, new_prefix: str = False):
         """Change the bots prefix. Action can be either add or remove"""
-        prefix_ = await self.db.get_user_information(ctx.author.id).distinct("prefix")
+        prefix_ = await self.udb.get_user_information_global(ctx.author.id).distinct("prefix")
         # Check if there are already 10 prefixes added
         if len(prefix_) > 10:
             message = "You can only add up to 10 custom prefixes. Please remove one " \
