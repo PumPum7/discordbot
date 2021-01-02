@@ -1,6 +1,6 @@
 import asyncio
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 import random
 import datetime
 
@@ -28,7 +28,7 @@ class Gambling(commands.Cog):
     async def cmd_balance(self, ctx, user: discord.Member = None):
         if not user:
             user = ctx.author
-        balance = await self.udb.get_user_information(user.id).distinct("balance")
+        balance = await self.udb.get_user_information(user.id, ctx.guild.id).distinct("balance")
         if len(balance) < 1:
             balance = 0
         else:
@@ -124,7 +124,7 @@ class Gambling(commands.Cog):
         # sends the embeds and changes the currency
         embed = self.blackjack_msg_updater(msg, hand)
         embed.description = text.format(bet_edited)
-        embed.color = discord.Color.green() if win else discord.Color.red()
+        embed.colour = discord.Color.green() if win else discord.Color.red()
         await self.udb.edit_money(ctx.author.id, ctx.guild.id, bet_edited)
         return await msg.edit(embed=embed, content=msg.content)
 
@@ -135,7 +135,7 @@ class Gambling(commands.Cog):
         cooldown = 24
         user = ctx.author
         # check if they cna claim it again
-        last_claim = await self.udb.get_user_information(user.id).distinct("claimed_daily")
+        last_claim = await self.udb.get_user_information(user.id, ctx.author.id).distinct("claimed_daily")
         if not last_claim:
             claimed_daily = False
         else:
