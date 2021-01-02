@@ -106,7 +106,7 @@ async def on_ready():
     return print(f"Successfully logged in and booted...!")
 
 
-"""@bot.event
+@bot.event
 async def on_command_error(ctx, error):
     # no error handler if there is a local error handler
     if hasattr(ctx.command, 'on_error'):
@@ -129,7 +129,7 @@ async def on_command_error(ctx, error):
     else:
         logger.error(ctx.command.qualified_name + ": " + str(error))
         msg = "The error has been reported."
-    await MSG_GENERATOR.error_msg(ctx, msg)"""
+    await MSG_GENERATOR.error_msg(ctx, msg)
 
 
 loop = asyncio.get_event_loop()

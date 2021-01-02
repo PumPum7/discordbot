@@ -1,7 +1,7 @@
 from discord.ext import commands
 
-from functions import func_database, func_errors
 import bot_settings as bs
+from functions import func_database, func_errors
 
 udb = func_database.UserDatabase()
 
@@ -14,7 +14,7 @@ class GlobalMoney(commands.Converter):
         :type argument: int
         """
         try:
-            argument = int(argument)
+            argument: int = int(argument)
         except Exception:
             raise commands.BadArgument
         if argument < 1:

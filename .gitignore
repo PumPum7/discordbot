@@ -3,3 +3,4 @@ data/errors
 .log
 __pycache__
 venv
+.idea

@@ -6,10 +6,16 @@ import datetime
 DEFAULTS = (bot_settings.database_password, bot_settings.database_username, bot_settings.database_default)
 
 
+UDB = None
+
+
 class Database:
     def __init__(self, password=DEFAULTS[0], username=DEFAULTS[1], dbname=DEFAULTS[2]):
+        global UDB
         link = f"mongodb+srv://{username}:{password}@cluster0.hwngf.mongodb.net/"
-        self.client = motor.motor_asyncio.AsyncIOMotorClient(link)
+        if not UDB:
+            UDB = motor.motor_asyncio.AsyncIOMotorClient(link)
+        self.client = UDB
         self.db = self.client[dbname]
 
 
@@ -19,8 +25,8 @@ class UserDatabase(Database):
         self.economy_db = self.db.MemberServerInformation
         self.collection = self.db.User
 
-    def get_user_information(self, user_id: int):
-        information = self.economy_db.find({"user_id": user_id})
+    def get_user_information(self, user_id: int, server_id: int):
+        information = self.economy_db.find({"user_id": user_id, "server_id": server_id})
         return information
 
     def get_user_information_global(self, user_id: int):
