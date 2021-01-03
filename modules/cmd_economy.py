@@ -56,14 +56,14 @@ class Gambling(commands.Cog):
 
     @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.command(name="blackjack", aliases=["bj"])
-    async def cmd_blackjack(self, ctx, bet: func_economy.GlobalMoney):
+    async def cmd_blackjack(self, ctx, bet_: func_economy.GlobalMoney):
         """Play blackjack with this command."""
         # TODO: add emotes or even generated images for cards
-        # TODO: double down (hard 9, 10 or 11)
-        # TODO: double down:
         hand = {'bot': [], 'human': []}
         suits = ['c', 'h', 'd', 's']
         deck = []
+        bet = bet_[0]
+        balance = bet_[1]
         for suit in suits:
             for rank in range(1, 14):
                 deck.append(func_economy.Card(rank, suit))
@@ -86,7 +86,10 @@ class Gambling(commands.Cog):
         )
         msg = await self.msg.message_sender(ctx, embed=start_embed)
         for i in self.bj_reactions.keys():
-            await msg.add_reaction(i)
+            if i == "🇩" and bet * 2 > balance:
+                pass
+            else:
+                await msg.add_reaction(i)
         playing = True
         playerBusted = False
         while playing:
@@ -111,7 +114,12 @@ class Gambling(commands.Cog):
                     await msg.edit(embed=self.blackjack_msg_updater(msg, hand))
             elif self.bj_reactions[reaction.emoji] == "stand":
                 playing = False
-            # TODO: add double down
+            elif self.bj_reactions[reaction.emoji] == "double down":
+                if func_economy.bj_hand_counter(hand['human']) in [11, 10, 9] and \
+                        bet * 2 < balance:
+                    hand['human'].append(deck.pop(0))
+                    bet *= 2
+                    playing = False
             else:
                 pass
         # bot hands handler
@@ -155,6 +163,9 @@ class Gambling(commands.Cog):
         embed.timestamp = next_claim
         embed.description = msg
         return await self.msg.message_sender(ctx, embed, color=colour)
+
+
+# TODO: add server shop
 
 
 def setup(bot):

@@ -1,3 +1,5 @@
+from typing import Union
+
 from discord.ext import commands
 
 import bot_settings as bs
@@ -7,7 +9,7 @@ udb = func_database.UserDatabase()
 
 
 class GlobalMoney(commands.Converter):
-    async def convert(self, ctx, argument: int) -> float:
+    async def convert(self, ctx, argument: int) -> tuple[int, int]:
         """
 
         :param ctx: commands.context
@@ -19,7 +21,7 @@ class GlobalMoney(commands.Converter):
             raise commands.BadArgument
         if argument < 1:
             raise func_errors.EconomyError("You can't use a negative amount of currency for this action!")
-        balance = await udb.get_user_information(ctx.author.id).distinct("balance")
+        balance = await udb.get_user_information(ctx.author.id, ctx.guild.id).distinct("balance")
         if len(balance) < 1:
             balance = 0
         else:
@@ -27,7 +29,7 @@ class GlobalMoney(commands.Converter):
         if argument > balance:
             raise func_errors.EconomyError(f"You only have {balance}{bs.currency_name}!")
         else:
-            return argument
+            return argument, balance
 
 
 class Card:
@@ -71,12 +73,13 @@ def bj_string_generator(reactions) -> str:
     bj_message = []
     for action in reactions.keys():
         bj_message.append(f"{reactions[action].capitalize()}: {action}\n")
-    return "".join(bj_message)
+    return f"{''.join(bj_message)}\nDouble down is only available if you have a score of 9, 10 or 11"
 
 
 def bj_field_generator(cur_player, hands) -> str:
-    return f"Score: {bj_hand_counter(hands[cur_player])}\n" \
-           f"Cards: {', '.join(str(i) for i in hands[cur_player])}"
+    cur_hands = hands[cur_player]
+    return f"Score: {bj_hand_counter(cur_hands)}\n" \
+           f"Cards: {', '.join((i.__str__ for i in cur_hands))}"
 
 
 def bj_handle_bot_cards(hand, deck) -> tuple:
@@ -122,4 +125,4 @@ def bj_winner_handler(hand, playerBusted: bool, botBusted: bool, bet: float) -> 
         win = False
         msg = "You lost {}" + bs.currency_name + "..."
         bet *= -1.0
-    return msg, win, bet
+    return msg, win, int(round(bet, 0))

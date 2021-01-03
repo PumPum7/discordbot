@@ -106,30 +106,30 @@ async def on_ready():
     return print(f"Successfully logged in and booted...!")
 
 
-@bot.event
-async def on_command_error(ctx, error):
-    # no error handler if there is a local error handler
-    if hasattr(ctx.command, 'on_error'):
-        return
-    cog = ctx.cog
-    if cog:
-        if cog._get_overridden_method(cog.cog_command_error) is not None:
-            return
-    error_ = getattr(error, 'original', error)
-    ignored = (commands.CommandNotFound, commands.NotOwner, commands.DisabledCommand, commands.NoPrivateMessage)
-    if isinstance(error_, ignored):
-        return
-    elif isinstance(error, (commands.MissingRequiredArgument, commands.BadArgument)):
-        msg = f"Please make sure you have specified all required arguments correctly! \n" \
-              f"Use `{ctx.prefix}help {ctx.command.qualified_name}` for more information."
-    elif isinstance(error, commands.CommandOnCooldown):
-        msg = str(error)
-    elif isinstance(error, func_errors.EconomyError):
-        msg = str(error)
-    else:
-        logger.error(ctx.command.qualified_name + ": " + str(error))
-        msg = "The error has been reported."
-    await MSG_GENERATOR.error_msg(ctx, msg)
+# @bot.event
+# async def on_command_error(ctx, error):
+#     # no error handler if there is a local error handler
+#     if hasattr(ctx.command, 'on_error'):
+#         return
+#     cog = ctx.cog
+#     if cog:
+#         if cog._get_overridden_method(cog.cog_command_error) is not None:
+#             return
+#     error_ = getattr(error, 'original', error)
+#     ignored = (commands.CommandNotFound, commands.NotOwner, commands.DisabledCommand, commands.NoPrivateMessage)
+#     if isinstance(error_, ignored):
+#         return
+#     elif isinstance(error, (commands.MissingRequiredArgument, commands.BadArgument)):
+#         msg = f"Please make sure you have specified all required arguments correctly! \n" \
+#               f"Use `{ctx.prefix}help {ctx.command.qualified_name}` for more information."
+#     elif isinstance(error, commands.CommandOnCooldown):
+#         msg = str(error)
+#     elif isinstance(error, func_errors.EconomyError):
+#         msg = str(error)
+#     else:
+#         logger.error(ctx.command.qualified_name + ": " + str(error))
+#         msg = "The error has been reported."
+#     await MSG_GENERATOR.error_msg(ctx, msg)
 
 
 loop = asyncio.get_event_loop()
