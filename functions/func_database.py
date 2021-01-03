@@ -50,10 +50,14 @@ class UserDatabase(Database):
             upsert=True
         )
 
-    async def claim_daily(self, user_id: int, server_id: int, amount: int):
+    async def claim_daily(self, author_user_id: int, user_id: int, server_id: int, amount: int):
+        await self.economy_db.update_one(
+            {"user_id": author_user_id, 'server_id': server_id},
+            {"$set": {"claimed_daily": datetime.datetime.utcnow()}}
+        )
         return await self.economy_db.find_one_and_update(
             {"user_id": user_id, "server_id": server_id},
-            {"$inc": {"balance": int(amount)}, "$set": {"claimed_daily": datetime.datetime.utcnow()}},
+            {"$inc": {"balance": int(amount)}},
             upsert=True
         )
 

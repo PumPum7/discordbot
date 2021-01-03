@@ -82,7 +82,7 @@ class Gambling(commands.Cog):
         )
         start_embed.add_field(
             name="Bot",
-            value=func_economy.bj_field_generator("bot", hand)
+            value=func_economy.bj_field_generator("bot", {"bot": [hand['bot'][0]]})
         )
         msg = await self.msg.message_sender(ctx, embed=start_embed)
         for i in self.bj_reactions.keys():
@@ -137,20 +137,21 @@ class Gambling(commands.Cog):
         return await msg.edit(embed=embed, content=msg.content)
 
     @commands.command(name="claim", aliases=["work"])
-    async def cmd_daily(self, ctx) -> discord.Message:
+    async def cmd_daily(self, ctx, user: discord.User = None) -> discord.Message:
         # TODO: change to use server setting
         amount = bot_settings.daily_amount
         cooldown = 24
-        user = ctx.author
+        if not user:
+            user = ctx.author
         # check if they cna claim it again
-        last_claim = await self.udb.get_user_information(user.id, ctx.author.id).distinct("claimed_daily")
+        last_claim = await self.udb.get_user_information(ctx.author.id, ctx.guild.id).distinct("claimed_daily")
         if not last_claim:
             claimed_daily = False
         else:
             claimed_daily = last_claim[0] + datetime.timedelta(hours=cooldown) > datetime.datetime.utcnow()
         embed = discord.Embed()
         if not claimed_daily:
-            await self.udb.claim_daily(user.id, ctx.guild.id, amount)
+            await self.udb.claim_daily(ctx.author.id, user.id, ctx.guild.id, amount)
             msg = f"{amount}{self.cur} claimed!"
             colour = discord.Color.green()
             next_claim = datetime.datetime.utcnow() + datetime.timedelta(hours=cooldown)
