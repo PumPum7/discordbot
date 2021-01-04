@@ -20,6 +20,7 @@ class UserSettings(commands.Cog):
             # deletes user id and object id
             del user_information['_id']
             del user_information['user_id']
+            del user_information["balance"]
         except IndexError:
             return await ctx.send_help(self.cmd_group_set)
         embed = discord.Embed(
@@ -27,7 +28,7 @@ class UserSettings(commands.Cog):
         )
         embed.set_footer(text=f"For more information use {ctx.prefix}help {ctx.command}")
         paginator = self.msg.paginator_handler(ctx, embed, user_information)
-        await paginator.call_controller()
+        await paginator.start_paginator()
 
     async def prefix_handler(self, action, new_prefix, ctx) -> Union[bool, tuple]:
         action = action.lower()
