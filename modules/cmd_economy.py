@@ -137,12 +137,11 @@ class Gambling(commands.Cog):
         return await msg.edit(embed=embed, content=msg.content)
 
     @commands.command(name="claim", aliases=["work"])
-    async def cmd_daily(self, ctx, user: discord.User = None) -> discord.Message:
+    async def cmd_daily(self, ctx, user_: discord.User = None) -> discord.Message:
         # TODO: change to use server setting
         amount = bot_settings.daily_amount
         cooldown = 24
-        if not user:
-            user = ctx.author
+        user = user_ or ctx.author
         # check if they cna claim it again
         last_claim = await self.udb.get_user_information(ctx.author.id, ctx.guild.id).distinct("claimed_daily")
         if not last_claim:
@@ -152,7 +151,10 @@ class Gambling(commands.Cog):
         embed = discord.Embed()
         if not claimed_daily:
             await self.udb.claim_daily(ctx.author.id, user.id, ctx.guild.id, amount)
-            msg = f"{amount}{self.cur} claimed!"
+            if user_:
+                msg = f"**{amount}{self.cur}** claimed!"
+            else:
+                msg = f"You gave **{amount}{self.cur}** to {user_}!"
             colour = discord.Color.green()
             next_claim = datetime.datetime.utcnow() + datetime.timedelta(hours=cooldown)
         else:
