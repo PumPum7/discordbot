@@ -70,8 +70,8 @@ class MessageGenerator:
         # create the embeds
         for i in split_lists:
             embed_copy = base_embed.copy()
-            description = "\n".join(f'{self.digits[i.index(setting) + 1]} {setting[0].capitalize()}: {setting[1]}'
-                                    for setting in i)
+            description = "\n".join(f'{self.digits[i.index(setting) + 1] if func else ""} {setting[0].capitalize()}: '
+                                    f'{setting[1]}' for setting in i)
             description = description.replace("[", "").replace("]", "").replace("'", "`")
             embed_copy.description = description
             paginator.add_page(embed_copy)
