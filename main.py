@@ -10,7 +10,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 import bot_settings
-from functions import func_msg_gen, func_database, func_errors
+from functions import func_msg_gen, func_database, func_context
 
 logger = logging.getLogger('discord')
 logger.setLevel(logging.ERROR)
@@ -21,16 +21,25 @@ logger.addHandler(handler)
 MSG_GENERATOR = func_msg_gen.MessageGenerator()
 
 UserDB = func_database.UserDatabase()
+ServerDB = func_database.ServerDatabase()
+
+
+class FullBot(commands.Bot):
+    def __init__(self, command_prefix, **options):
+        super().__init__(command_prefix, **options)
+
+    async def get_context(self, message, *, cls=func_context.FullContext):
+        return await super().get_context(message, cls=cls)
 
 
 async def get_prefix(bot, message):
     # gets the bot prefix
     prefix = bot_settings.prefix
     prefix += await UserDB.get_user_information_global(message.author.id).distinct("prefix")
-
+    prefix += await ServerDB.get_server_information(message.guild.id).distinct("prefix")
     return commands.when_mentioned_or(*prefix)(bot, message)
 
-bot = commands.Bot(command_prefix=get_prefix, description="", case_insensitive=True)
+bot = FullBot(command_prefix=get_prefix, description="", case_insensitive=True)
 
 
 def error_handler(error):
@@ -69,6 +78,7 @@ if __name__ == "__main__":
                     error_handler(e)
     except Exception as e:
         error_handler(e)
+    bot.load_extension('jishaku')
 
 
 @bot.event
@@ -104,32 +114,6 @@ async def on_ready():
         await message.edit(content="Successfully restarted!")
         return print("Successfully restarted!")
     return print(f"Successfully logged in and booted...!")
-
-
-# @bot.event
-# async def on_command_error(ctx, error):
-#     # no error handler if there is a local error handler
-#     if hasattr(ctx.command, 'on_error'):
-#         return
-#     cog = ctx.cog
-#     if cog:
-#         if cog._get_overridden_method(cog.cog_command_error) is not None:
-#             return
-#     error_ = getattr(error, 'original', error)
-#     ignored = (commands.CommandNotFound, commands.NotOwner, commands.DisabledCommand, commands.NoPrivateMessage)
-#     if isinstance(error_, ignored):
-#         return
-#     elif isinstance(error, (commands.MissingRequiredArgument, commands.BadArgument)):
-#         msg = f"Please make sure you have specified all required arguments correctly! \n" \
-#               f"Use `{ctx.prefix}help {ctx.command.qualified_name}` for more information."
-#     elif isinstance(error, commands.CommandOnCooldown):
-#         msg = str(error)
-#     elif isinstance(error, func_errors.EconomyError):
-#         msg = str(error)
-#     else:
-#         logger.error(ctx.command.qualified_name + ": " + str(error))
-#         msg = "The error has been reported."
-#     await MSG_GENERATOR.error_msg(ctx, msg)
 
 
 loop = asyncio.get_event_loop()
