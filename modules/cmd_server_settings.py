@@ -16,7 +16,7 @@ class ServerSettings(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     @commands.guild_only()
     async def cmd_server_settings(self, ctx):
-        server_information = await self.sdb.get_server_information(ctx.guild.id).to_list(length=1)
+        server_information = await ctx.get_server_information()
         try:
             server_information = server_information[0]
             # deletes server id and object id
@@ -35,7 +35,11 @@ class ServerSettings(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     @commands.guild_only()
     async def cmd_set_server_prefix(self, ctx, action=None, new_prefix=None):
-        prefix_ = await self.sdb.get_server_information(ctx.guild.id).distinct("prefix")
+        prefix_ = await ctx.get_server_information()
+        try:
+            prefix_ = prefix_[0]["prefix"]
+        except IndexError:
+            prefix_ = []
         # Check if there are already 10 prefixes added
         if len(prefix_) > 10:
             message = "You can only add up to 10 custom prefixes. Please remove one " \

@@ -1,10 +1,11 @@
-import motor.motor_asyncio
-from pymongo import ReturnDocument
-import bot_settings
 import datetime
 
-DEFAULTS = (bot_settings.database_password, bot_settings.database_username, bot_settings.database_default)
+import motor.motor_asyncio
+from pymongo import ReturnDocument
 
+import bot_settings
+
+DEFAULTS = (bot_settings.database_password, bot_settings.database_username, bot_settings.database_default)
 
 UDB = None
 
@@ -33,32 +34,45 @@ class UserDatabase(Database):
         information = self.collection.find({"user_id": user_id})
         return information
 
+    async def set_setting_global(self, user_id: int, query: dict):
+        return await self.economy_db.find_one_and_update(
+            {"user_id": user_id},
+            query,
+            upsert=True
+        )
+
+    async def set_setting_local(self, user_id: int, server_id: int, query: dict):
+        return await self.economy_db.find_one_and_update(
+            {"user_id": user_id, "server_id": server_id},
+            query,
+            upsert=True
+        )
+
     async def edit_prefix(self, user_id: int, prefix: str, action: bool):
         """Edit user prefix"""
         query = "$addToSet" if action else "$pull"
-        updated = await self.collection.find_one_and_update(
-            {"user_id": user_id},
-            {query: {"prefix": prefix}}, upsert=True,
-            return_document=ReturnDocument.AFTER
+        return await self.set_setting_global(
+            user_id=user_id,
+            query={query: {"prefix": prefix}}
         )
-        return updated
 
     async def edit_money(self, user_id: int, server_id: int, amount: int):
-        return await self.economy_db.find_one_and_update(
-            {"user_id": user_id, "server_id": server_id},
-            {"$inc": {"balance": int(amount)}},
-            upsert=True
+        return await self.set_setting_local(
+            user_id=user_id,
+            server_id=server_id,
+            query={"$inc": {"balance": int(amount)}}
         )
 
     async def claim_daily(self, author_user_id: int, user_id: int, server_id: int, amount: int):
-        await self.economy_db.update_one(
-            {"user_id": author_user_id, 'server_id': server_id},
-            {"$set": {"claimed_daily": datetime.datetime.utcnow()}}
+        await self.set_setting_local(
+            user_id=author_user_id,
+            server_id=server_id,
+            query={"$set": {"claimed_daily": datetime.datetime.utcnow()}}
         )
-        return await self.economy_db.find_one_and_update(
-            {"user_id": user_id, "server_id": server_id},
-            {"$inc": {"balance": int(amount)}},
-            upsert=True
+        return await self.edit_money(
+            user_id=user_id,
+            server_id=server_id,
+            amount=amount
         )
 
 
@@ -71,15 +85,20 @@ class ServerDatabase(Database):
         information = self.collection.find({"server_id": server_id})
         return information
 
-    async def edit_prefix(self, user_id: int, prefix: str, action: bool):
+    async def set_setting(self, server_id: int, query: dict):
+        return await self.collection.find_one_and_update(
+            {"server_id": server_id},
+            query,
+            upsert=True
+        )
+
+    async def edit_prefix(self, server_id: int, prefix: str, action: bool):
         """Edit server prefix"""
         query = "$addToSet" if action else "$pull"
-        updated = await self.collection.find_one_and_update(
-            {"server_id": user_id},
-            {query: {"prefix": prefix}}, upsert=True,
-            return_document=ReturnDocument.AFTER
+        return await self.set_setting(
+            server_id=server_id,
+            query={query: {"prefix": prefix}}
         )
-        return updated
 
 
 # test

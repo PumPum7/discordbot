@@ -27,11 +27,11 @@ class Gambling(commands.Cog):
     @commands.command(name="balance", aliases=["wallet", "bal"])
     async def cmd_balance(self, ctx, user: discord.Member = None):
         user = user or ctx.author
-        balance = await self.udb.get_user_information(user.id, ctx.guild.id).distinct("balance")
-        if len(balance) < 1:
-            balance = 0
-        else:
-            balance = balance[0]
+        information = await ctx.get_user_information()
+        try:
+            balance: int = information[1][0]["balance"]
+        except IndexError:
+            balance: int = 0
         embed = discord.Embed(
             title=f"{user.display_name}'s balance:",
             description=f"> {balance}{self.cur}"
@@ -143,22 +143,26 @@ class Gambling(commands.Cog):
         cooldown = 24
         user = user_ or ctx.author
         # check if they cna claim it again
-        last_claim = await self.udb.get_user_information(ctx.author.id, ctx.guild.id).distinct("claimed_daily")
-        if not last_claim:
-            claimed_daily = False
+        information = await ctx.get_user_information()
+        try:
+            last_claim: datetime.datetime = information[1][0]["claimed_daily"]
+        except IndexError:
+            last_claim: bool = False
+        if last_claim:
+            claimed_daily = last_claim + datetime.timedelta(hours=cooldown) > datetime.datetime.utcnow()
         else:
-            claimed_daily = last_claim[0] + datetime.timedelta(hours=cooldown) > datetime.datetime.utcnow()
+            claimed_daily = False
         embed = discord.Embed()
         if not claimed_daily:
             await self.udb.claim_daily(ctx.author.id, user.id, ctx.guild.id, amount)
-            if user_:
-                msg = f"**{amount}{self.cur}** claimed!"
+            if not user_:
+                msg = f"Successfully claimed **{amount}{self.cur}**!"
             else:
                 msg = f"You gave **{amount}{self.cur}** to {user_}!"
             colour = discord.Color.green()
             next_claim = datetime.datetime.utcnow() + datetime.timedelta(hours=cooldown)
         else:
-            next_claim = (last_claim[0] + datetime.timedelta(hours=cooldown))
+            next_claim = last_claim + datetime.timedelta(hours=cooldown)
             colour = discord.Color.red()
             embed.title = ""
             msg = "You have already claimed your credits."

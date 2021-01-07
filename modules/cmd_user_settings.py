@@ -14,13 +14,12 @@ class UserSettings(commands.Cog):
     @commands.group(name="set", invoke_without_command=True)
     async def cmd_group_set(self, ctx):
         """Get your current user settings"""
-        user_information = await self.udb.get_user_information_global(ctx.author.id).to_list(length=1)
+        user_information = await ctx.get_user_information()
         try:
-            user_information = user_information[0]
+            user_information = user_information[0][0]
             # deletes user id and object id
             del user_information['_id']
             del user_information['user_id']
-            del user_information["balance"]
         except IndexError:
             return await ctx.send_help(self.cmd_group_set)
         embed = discord.Embed(
@@ -46,7 +45,12 @@ class UserSettings(commands.Cog):
     @cmd_group_set.command(name="prefix")
     async def cmd_set_prefix(self, ctx, action=None, new_prefix: str = None):
         """Change the bots prefix. Action can be either add or remove"""
-        prefix_ = await self.udb.get_user_information_global(ctx.author.id).distinct("prefix")
+        # prefix_ = await self.udb.get_user_information_global(ctx.author.id).distinct("prefix")
+        prefix_ = await ctx.get_user_information()
+        try:
+            prefix_ = prefix_[0][0]["prefix"]
+        except IndexError:
+            prefix_ = []
         # Check if there are already 10 prefixes added
         if len(prefix_) > 10:
             message = "You can only add up to 10 custom prefixes. Please remove one " \
@@ -71,6 +75,11 @@ class UserSettings(commands.Cog):
             value=", ".join(prefix_) or "No custom prefixes are currently set"
         )
         await self.msg.message_sender(ctx, embed)
+
+    @cmd_group_set.command(name="color", aliases=["colour"])
+    async def cmd_set_embed_color(self, ctx, color: discord.Color = None) -> discord.Message:
+        """Set the default embed color"""
+
 
 
 def setup(bot):

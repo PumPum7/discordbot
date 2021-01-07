@@ -19,11 +19,13 @@ class GlobalMoney(commands.Converter):
             raise commands.BadArgument()
         if argument < 1:
             raise func_errors.EconomyError("You can't use a negative amount of currency for this action!")
-        balance = await udb.get_user_information(ctx.author.id, ctx.guild.id).distinct("balance")
-        if len(balance) < 1:
-            balance = 0
+        information = await ctx.get_user_information()
+        try:
+            balance: int = information[1][0]["balance"]
+        except IndexError:
+            balance: int = 0
         else:
-            balance = balance[0]
+            balance = balance
         if argument > balance:
             raise func_errors.EconomyError(f"You only have {balance}{bs.currency_name}!")
         else:
