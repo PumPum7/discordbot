@@ -1,8 +1,6 @@
 import discord
 from discord.ext import commands
-from asyncio import TimeoutError as AsyncioTimeoutError
-from asyncio import wait as asyncioWait
-from asyncio import FIRST_COMPLETED as ASYNCIO_FIRST_COMPLETED
+from asyncio import TimeoutError as AsyncioTimeoutError, FIRST_COMPLETED as ASYNCIO_FIRST_COMPLETED, wait as async_wait
 from typing import Union
 
 import bot_settings
@@ -49,6 +47,8 @@ class MessageGenerator:
     def paginator_handler(self, ctx, base_embed: discord.Embed, items: dict, reactions: list = None,
                           timeout=120, items_per_page=5, func=None, close_after_func=True, func_check=None):
         """ Handles the paginator initiation
+        :param ctx: commands.Context
+            discord Context
         :param items
             Max 10 items per page
         :param func: function
@@ -88,7 +88,7 @@ class MessageGenerator:
 
 class Paginator:
     def __init__(self, ctx: commands.Context, reactions: Union[list, tuple] = None, timeout: int = 120,
-                 func=None, close_after_func=True, func_check=None, items: dict = {}):
+                 func=None, close_after_func=True, func_check=None, items=None):
         """
 
         Parameters
@@ -103,6 +103,10 @@ class Paginator:
         func
 
         """
+        if items is None:
+            items = {}
+        if items is None:
+            items = {}
         self.controller = None
         self.reactions = reactions or ('⬅', '⏹', '➡')
         self.pages = []
@@ -124,8 +128,13 @@ class Paginator:
         except Exception:
             pass
         # cleanup
-        del self.reactions; del self.pages; del self.current; del self.ctx; del self.timeout
-        del self.func; del self.close_after_func
+        del self.reactions
+        del self.pages
+        del self.current
+        del self.ctx
+        del self.timeout
+        del self.func
+        del self.close_after_func
 
     def add_page(self, embed: discord.Embed):
         self.pages.append(embed)
@@ -159,7 +168,7 @@ class Paginator:
                                               timeout=self.timeout, check=self.func_check)
                     )
 
-                tasks_result, tasks = await asyncioWait(tasks, return_when=ASYNCIO_FIRST_COMPLETED)
+                tasks_result, tasks = await async_wait(tasks, return_when=ASYNCIO_FIRST_COMPLETED)
 
                 for task in tasks:
                     task.cancel()
@@ -184,4 +193,3 @@ class Paginator:
                 if self.close_after_func:
                     break
         await self.close_paginator()
-
