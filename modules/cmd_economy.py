@@ -26,8 +26,7 @@ class Gambling(commands.Cog):
 
     @commands.command(name="balance", aliases=["wallet", "bal"])
     async def cmd_balance(self, ctx, user: discord.Member = None):
-        if not user:
-            user = ctx.author
+        user = user or ctx.author
         balance = await self.udb.get_user_information(user.id, ctx.guild.id).distinct("balance")
         if len(balance) < 1:
             balance = 0
@@ -91,13 +90,14 @@ class Gambling(commands.Cog):
             else:
                 await msg.add_reaction(i)
         playing = True
-        playerBusted = False
+        player_busted = False
         while playing:
             # wait for reactions (15 sec timeout)
             try:
                 reaction, user = await self.bot.wait_for("reaction_add",
-                                                         check=lambda reaction, user:
-                                                         user == ctx.author and reaction.emoji in self.bj_reactions.keys(),
+                                                         check=lambda reaction_, user_:
+                                                         user_ == ctx.author
+                                                         and reaction_.emoji in self.bj_reactions.keys(),
                                                          timeout=20.0)
             except asyncio.TimeoutError:
                 await self.udb.edit_money(ctx.author.id, ctx.guild.id, -bet)
@@ -107,7 +107,7 @@ class Gambling(commands.Cog):
             if self.bj_reactions[reaction.emoji] == "hit":
                 hand['human'].append(deck.pop(0))
                 if func_economy.bj_hand_counter(hand['human']) > 21:
-                    playerBusted = True
+                    player_busted = True
                     playing = False
                 else:
                     await msg.remove_reaction(emoji=reaction.emoji, member=ctx.author)
@@ -123,12 +123,12 @@ class Gambling(commands.Cog):
             else:
                 pass
         # bot hands handler
-        botBusted = False
-        if not playerBusted:
+        bot_busted = False
+        if not player_busted:
             # generates the bots hand
-            hand, deck, botBusted = func_economy.bj_handle_bot_cards(hand, deck)
+            hand, deck, bot_busted = func_economy.bj_handle_bot_cards(hand, deck)
         # handler for winner
-        text, win, bet_edited = func_economy.bj_winner_handler(hand, playerBusted, botBusted, bet)
+        text, win, bet_edited = func_economy.bj_winner_handler(hand, player_busted, bot_busted, bet)
         # sends the embeds and changes the currency
         embed = self.blackjack_msg_updater(msg, hand)
         embed.description = text.format(bet_edited)

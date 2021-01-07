@@ -33,7 +33,7 @@ class UserDatabase(Database):
         information = self.collection.find({"user_id": user_id})
         return information
 
-    async def edit_prefix(self, user_id: int, prefix: str, action: str):
+    async def edit_prefix(self, user_id: int, prefix: str, action: bool):
         """Edit user prefix"""
         query = "$addToSet" if action else "$pull"
         updated = await self.collection.find_one_and_update(
@@ -60,6 +60,26 @@ class UserDatabase(Database):
             {"$inc": {"balance": int(amount)}},
             upsert=True
         )
+
+
+class ServerDatabase(Database):
+    def __init__(self):
+        super(ServerDatabase, self).__init__()
+        self.collection = self.db.Server
+
+    def get_server_information(self, server_id: int):
+        information = self.collection.find({"server_id": server_id})
+        return information
+
+    async def edit_prefix(self, user_id: int, prefix: str, action: bool):
+        """Edit server prefix"""
+        query = "$addToSet" if action else "$pull"
+        updated = await self.collection.find_one_and_update(
+            {"server_id": user_id},
+            {query: {"prefix": prefix}}, upsert=True,
+            return_document=ReturnDocument.AFTER
+        )
+        return updated
 
 
 # test

@@ -1,5 +1,3 @@
-from typing import Union
-
 from discord.ext import commands
 
 import bot_settings as bs
@@ -18,7 +16,7 @@ class GlobalMoney(commands.Converter):
         try:
             argument: int = int(argument)
         except Exception:
-            raise commands.BadArgument
+            raise commands.BadArgument()
         if argument < 1:
             raise func_errors.EconomyError("You can't use a negative amount of currency for this action!")
         balance = await udb.get_user_information(ctx.author.id, ctx.guild.id).distinct("balance")
@@ -45,17 +43,17 @@ class Card:
     def __str__(self) -> str:
         return self.cardName[self.rank] + " Of " + self.cardSuit[self.suit]
 
-    def getRank(self) -> str:
+    def get_rank(self) -> str:
         """
 
         :rtype: int
         """
         return self.rank
 
-    def getSuit(self) -> str:
+    def get_suit(self) -> str:
         return self.suit
 
-    def BJValue(self) -> int:
+    def bj_value(self) -> int:
         if self.rank > 9:
             return 10
         else:
@@ -63,10 +61,10 @@ class Card:
 
 
 def bj_hand_counter(hand) -> int:
-    handCount = 0
+    hand_count = 0
     for card in hand:
-        handCount += card.BJValue()
-    return handCount
+        hand_count += card.bj_value()
+    return hand_count
 
 
 def bj_string_generator(reactions) -> str:
@@ -95,21 +93,21 @@ def bj_handle_bot_cards(hand, deck) -> tuple:
     return hand, deck, busted
 
 
-def bj_winner_handler(hand, playerBusted: bool, botBusted: bool, bet: float) -> tuple:
+def bj_winner_handler(hand, player_busted: bool, bot_busted: bool, bet: float) -> tuple:
     """
 
-    :type botBusted: bool
+    :type bot_busted: bool
     :type bet: float
-    :type playerBusted: bool
+    :type player_busted: bool
     :type hand: dict
     """
     hand_human = bj_hand_counter(hand['human'])
     hand_bot = bj_hand_counter(hand['bot'])
-    if playerBusted:
+    if player_busted:
         win = False
         msg = "Busted! You lost {}" + bs.currency_name + "..."
         bet *= -1.0
-    elif botBusted:
+    elif bot_busted:
         win = True
         msg = "Dealer bust! You won {}" + bs.currency_name + " !"
     elif hand_human > hand_bot:

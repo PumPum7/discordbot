@@ -52,7 +52,7 @@ class UserSettings(commands.Cog):
             message = "You can only add up to 10 custom prefixes. Please remove one " \
                       "of your prefixes before adding new ones!"
         # check if its already registered
-        elif new_prefix in prefix_:
+        elif new_prefix in prefix_ and action == "add":
             message = f"`{new_prefix}` is already registered as prefix."
         # no action specified
         elif not new_prefix or not action:
@@ -68,7 +68,7 @@ class UserSettings(commands.Cog):
         embed = discord.Embed(title="Prefix Menu", description=message)
         embed.add_field(
             name="Your current prefixes:",
-            value=", ".join(prefix_)
+            value=", ".join(prefix_) or "No custom prefixes are currently set"
         )
         await self.msg.message_sender(ctx, embed)
 
