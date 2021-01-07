@@ -1,8 +1,9 @@
 import asyncio
+import datetime
+import random
+
 import discord
 from discord.ext import commands
-import random
-import datetime
 
 import bot_settings
 from functions import func_msg_gen, func_economy, func_database
@@ -27,11 +28,12 @@ class Gambling(commands.Cog):
     @commands.command(name="balance", aliases=["wallet", "bal"])
     async def cmd_balance(self, ctx, user: discord.Member = None):
         user = user or ctx.author
-        information = await ctx.get_user_information()
-        try:
-            balance: int = information[1][0]["balance"]
-        except IndexError:
-            balance: int = 0
+        information = self.udb.get_user_information(user.id, ctx.guild.id)
+        balance = await information.distinct("balance")
+        if len(balance) >= 1:
+            balance = balance[0]
+        else:
+            balance = 0
         embed = discord.Embed(
             title=f"{user.display_name}'s balance:",
             description=f"> {balance}{self.cur}"
@@ -159,7 +161,7 @@ class Gambling(commands.Cog):
                 msg = f"Successfully claimed **{amount}{self.cur}**!"
             else:
                 msg = f"You gave **{amount}{self.cur}** to {user_}!"
-            colour = discord.Color.green()
+            colour = None
             next_claim = datetime.datetime.utcnow() + datetime.timedelta(hours=cooldown)
         else:
             next_claim = last_claim + datetime.timedelta(hours=cooldown)

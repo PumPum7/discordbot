@@ -1,6 +1,8 @@
+import discord
 from discord.ext import commands
 
 from functions import func_database
+import bot_settings
 
 udb = func_database.UserDatabase()
 sdb = func_database.ServerDatabase()
@@ -24,8 +26,18 @@ class FullContext(commands.Context):
         return self.global_information, self.local_information
 
     async def set_user_information(self, query, global_=True):
-        return await udb.set_setting_global(self.author.id, query=query) if global_ else \
-            await udb.set_setting_local(self.author.id, server_id=self.guild.id, query=query)
+        if global_:
+            return await udb.set_setting_global(self.author.id, query=query)
+        else:
+            return await udb.set_setting_local(self.author.id, server_id=self.guild.id, query=query)
+
+    async def get_embed_color(self) -> discord.Color:
+        information = await self.get_user_information()
+        try:
+            embed_color = information[0][0]["embed_color"]
+        except KeyError or IndexError:
+            embed_color = bot_settings.embed_color
+        return embed_color
 
     async def get_server_information(self):
         if not self.server_information:

@@ -1,7 +1,5 @@
 import datetime
-
 import motor.motor_asyncio
-from pymongo import ReturnDocument
 
 import bot_settings
 
@@ -35,7 +33,7 @@ class UserDatabase(Database):
         return information
 
     async def set_setting_global(self, user_id: int, query: dict):
-        return await self.economy_db.find_one_and_update(
+        return await self.collection.find_one_and_update(
             {"user_id": user_id},
             query,
             upsert=True
