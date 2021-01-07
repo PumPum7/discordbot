@@ -1,7 +1,8 @@
-import discord
-from discord.ext import commands
 from asyncio import TimeoutError as AsyncioTimeoutError, FIRST_COMPLETED as ASYNCIO_FIRST_COMPLETED, wait as async_wait
 from typing import Union
+
+import discord
+from discord.ext import commands
 
 import bot_settings
 
@@ -10,6 +11,7 @@ class MessageGenerator:
     def __init__(self):
         self.color = bot_settings.embed_color
         self.error_embed = 0xff0000
+        self.converter = commands.ColourConverter()
         self.digits = {
             10: ":keycap_10:",
             9: ":nine:",
@@ -27,16 +29,17 @@ class MessageGenerator:
     def msg_gen(ctx) -> str:
         return f"Command: {ctx.command.qualified_name} - **[ {ctx.author} ]**"
 
-    async def message_sender(self, ctx: commands.Context, embed: discord.Embed, color=None) -> discord.Message:
+    async def message_sender(self, ctx, embed: discord.Embed, color=None) -> discord.Message:
         """Generates the same embed for every command from a dict
-        :type ctx: commands.Context
         :type color: object
         :type embed: discord.Embed
         """
         if color is None and embed.color == discord.Embed.Empty:
-            embed.colour = discord.Color(self.color)
+            colour = await ctx.get_embed_color()
+            colour = await self.converter.convert(ctx, colour)
         else:
-            embed.colour = color or embed.color
+            colour = color or embed.color
+        embed.colour = colour
         return await ctx.send(self.msg_gen(ctx), embed=embed)
 
     async def error_msg(self, ctx, msg) -> discord.Message:
@@ -72,7 +75,7 @@ class MessageGenerator:
             embed_copy = base_embed.copy()
             description = "\n".join(f'{self.digits[i.index(setting) + 1] if func else ""} {setting[0].capitalize()}: '
                                     f'{setting[1] or "Not set"}' for setting in i)
-            description = description.replace("[", "").replace("]", "").replace("'", "`") or "Not set"
+            description = description.replace("[", "").replace("]", "").replace("'", "`").replace("_", " ") or "Not set"
             embed_copy.description = description
             paginator.add_page(embed_copy)
         return paginator
