@@ -14,9 +14,13 @@ class OwnerCommands(commands.Cog):
     async def cmd_bot_reload_cog(self, ctx, cog):
         try:
             self.bot.reload_extension(f"modules.cmd_{cog}")
-        except:
-            return await ctx.send("Something went wrong...")
+        except Exception as e:
+            return await ctx.send(f"Something went wrong...\n{e}")
         return await ctx.send(f'Successfully reloaded {cog}!')
+
+    @cmd_bot_settings.command(name="error")
+    async def cmd_raise_error(self, ctx):
+        raise Exception("test")
 
 
 def setup(bot):
