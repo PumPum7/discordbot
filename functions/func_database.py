@@ -1,9 +1,10 @@
 import datetime
 import motor.motor_asyncio
+from pymongo import ReturnDocument
 
 import bot_settings
 
-DEFAULTS = (bot_settings.database_password, bot_settings.database_username, bot_settings.database_default)
+DEFAULTS = (bot_settings.database_password[1], bot_settings.database_username[1], bot_settings.database_default)
 
 UDB = None
 
@@ -11,7 +12,7 @@ UDB = None
 class Database:
     def __init__(self, password=DEFAULTS[0], username=DEFAULTS[1], dbname=DEFAULTS[2]):
         global UDB
-        link = f"mongodb+srv://{username}:{password}@cluster0.hwngf.mongodb.net/"
+        link = bot_settings.database_url[1].format(username, password)
         if not UDB:
             UDB = motor.motor_asyncio.AsyncIOMotorClient(link)
         self.client = UDB
@@ -36,22 +37,16 @@ class UserDatabase(Database):
         return await self.collection.find_one_and_update(
             {"user_id": user_id},
             query,
-            upsert=True
+            upsert=True,
+            return_document=ReturnDocument.AFTER
         )
 
     async def set_setting_local(self, user_id: int, server_id: int, query: dict):
         return await self.economy_db.find_one_and_update(
             {"user_id": user_id, "server_id": server_id},
             query,
-            upsert=True
-        )
-
-    async def edit_prefix(self, user_id: int, prefix: str, action: bool):
-        """Edit user prefix"""
-        query = "$addToSet" if action else "$pull"
-        return await self.set_setting_global(
-            user_id=user_id,
-            query={query: {"prefix": prefix}}
+            upsert=True,
+            return_document=ReturnDocument.AFTER
         )
 
     async def edit_money(self, user_id: int, server_id: int, amount: int):
@@ -87,7 +82,8 @@ class ServerDatabase(Database):
         return await self.collection.find_one_and_update(
             {"server_id": server_id},
             query,
-            upsert=True
+            upsert=True,
+            return_document=ReturnDocument.AFTER
         )
 
     async def edit_prefix(self, server_id: int, prefix: str, action: bool):

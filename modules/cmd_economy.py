@@ -9,7 +9,7 @@ import bot_settings
 from functions import func_msg_gen, func_economy, func_database
 
 
-class Gambling(commands.Cog):
+class EconomyCommands(commands.Cog, name="Economy Commands"):
     def __init__(self, bot):
         self.bot = bot
         self.msg = func_msg_gen.MessageGenerator()
@@ -28,12 +28,8 @@ class Gambling(commands.Cog):
     @commands.command(name="balance", aliases=["wallet", "bal"])
     async def cmd_balance(self, ctx, user: discord.Member = None):
         user = user or ctx.author
-        information = self.udb.get_user_information(user.id, ctx.guild.id)
-        balance = await information.distinct("balance")
-        if len(balance) >= 1:
-            balance = balance[0]
-        else:
-            balance = 0
+        information = await ctx.get_user_information()
+        balance = information[0].get('balance', 0) if information else 0
         embed = discord.Embed(
             title=f"{user.display_name}'s balance:",
             description=f"> {balance}{self.cur}"
@@ -147,7 +143,7 @@ class Gambling(commands.Cog):
         # check if they cna claim it again
         information = await ctx.get_user_information()
         try:
-            last_claim: datetime.datetime = information[1][0]["claimed_daily"]
+            last_claim: datetime.datetime = information[1].get("claimed_daily", False)
         except IndexError:
             last_claim: bool = False
         if last_claim:
@@ -175,7 +171,8 @@ class Gambling(commands.Cog):
 
 
 # TODO: add server shop
+# TODO: add give command
 
 
 def setup(bot):
-    bot.add_cog(Gambling(bot))
+    bot.add_cog(EconomyCommands(bot))

@@ -1,7 +1,7 @@
 from discord.ext import commands
 
 
-class OwnerCommands(commands.Cog):
+class OwnerCommands(commands.Cog, name="Owner commands"):
     def __init__(self, bot):
         self.bot = bot
 

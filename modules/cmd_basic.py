@@ -2,7 +2,7 @@ from discord.ext import commands
 from functions import func_msg_gen
 
 
-class BasicCommands(commands.Cog):
+class BasicCommands(commands.Cog, name="Basic Commands"):
     def __init__(self, bot):
         self.bot = bot
         self.msg_gen = func_msg_gen.MessageGenerator()
