@@ -10,7 +10,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 import bot_settings
-from functions import func_msg_gen, func_database, func_context
+from functions import func_msg_gen, func_database, func_context, func_prefix
 
 logger = logging.getLogger('discord')
 logger.setLevel(logging.ERROR)
@@ -22,6 +22,7 @@ MSG_GENERATOR = func_msg_gen.MessageGenerator()
 
 UserDB = func_database.UserDatabase()
 ServerDB = func_database.ServerDatabase()
+Prefix = func_prefix.Prefix()
 
 
 class FullBot(commands.Bot):
@@ -34,9 +35,7 @@ class FullBot(commands.Bot):
 
 async def get_prefix(bot, message):
     # gets the bot prefix
-    prefix = bot_settings.prefix
-    prefix += await UserDB.get_user_information_global(message.author.id).distinct("prefix")
-    prefix += await ServerDB.get_server_information(message.guild.id).distinct("prefix")
+    prefix = await Prefix.get_prefix(message.author.id, message.guild.id)
     return commands.when_mentioned_or(*prefix)(bot, message)
 
 bot = FullBot(command_prefix=get_prefix, description="", case_insensitive=True)
