@@ -2,6 +2,7 @@ from discord.ext import commands
 
 import bot_settings as bs
 from functions import func_database, func_errors
+from data.blackjack import blackjack_emotes
 
 udb = func_database.UserDatabase()
 
@@ -20,12 +21,7 @@ class GlobalMoney(commands.Converter):
         if argument < 1:
             raise func_errors.EconomyError("You can't use a negative amount of currency for this action!")
         information = await ctx.get_user_information()
-        try:
-            balance: int = information[1][0]["balance"]
-        except IndexError:
-            balance: int = 0
-        else:
-            balance = balance
+        balance: int = information[1].get("balance", 0) if information else 0
         if argument > balance:
             raise func_errors.EconomyError(f"You only have {balance}{bs.currency_name}!")
         else:
@@ -40,10 +36,11 @@ class Card:
                          9: 'Nine',
                          10: 'Ten', 11: 'Jack', 12: 'Queen', 13: 'King'}
         self.cardSuit = {'c': 'Clubs', 'h': 'Hearts', 's': 'Spades', 'd': 'Diamonds'}
+        self.emotes = blackjack_emotes.blackjack
 
     @property
     def __str__(self) -> str:
-        return self.cardName[self.rank] + " Of " + self.cardSuit[self.suit]
+        return self.emotes[f"white_{self.suit}_{self.rank}"]
 
     def get_rank(self) -> str:
         """
