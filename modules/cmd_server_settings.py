@@ -69,7 +69,6 @@ class ServerSettings(commands.Cog, name="Server Settings"):
         items = {
             "Exp enabled": server_information.get("exp_enabled", "Disabled")
         }
-
         if server_information.get('exp_enabled', False):
             del server_information["exp_enabled"]
             settings = bot_settings.default_exp
@@ -77,12 +76,32 @@ class ServerSettings(commands.Cog, name="Server Settings"):
             guild_roles = ctx.guild.roles
             for setting in settings.keys():
                 if setting.__contains__("exp"):
-                    items[setting] = server_information.get(setting, bot_settings.default_exp[setting])
+                    items[setting] = settings.get(setting, bot_settings.default_exp[setting])
                     # if setting contains role do more
                     if setting.__contains__("role"):
-                        items[setting]: list = [discord.utils.get(guild_roles, id=i)
-                                                for i in server_information.get(setting, [0])]
-                        items[setting] = [i.mention if i is not None else "Not set" for i in items[setting]]
+                        role_setting = settings.get(setting, bot_settings.default_exp[setting])
+                        if role_setting is None:
+                            # handler if role setting is none
+                            items[setting] = None
+                        elif type(role_setting[0]) == dict:
+                            # handles dict by adding a new field (looks better)
+                            values = [list(i.values()) for i in role_setting]
+                            items[setting] = "Check the fields below for more information"
+                            for v in values:
+                                role = discord.utils.get(guild_roles, id=v[0])
+                                if role is None:
+                                    role = f"role removed (`{v[0]})"
+                                else:
+                                    role = role.mention
+                                values[values.index(v)] = [role, v[1]]
+                            embed.add_field(
+                                name=setting.replace("_", " ").capitalize(),
+                                value='\n'.join([f"{i[0]}: {i[1]} Exp" for i in values]),
+                                inline=False
+                            )
+                        else:
+                            # otherwise just use the default
+                            items[setting] = role_setting
         paginator = self.msg.paginator_handler(
             ctx=ctx,
             base_embed=embed,
@@ -119,8 +138,11 @@ class ServerSettings(commands.Cog, name="Server Settings"):
                 check_message = {
                     "exp_amount": "Allowed range: 5 to 500",
                     "exp_cooldown": "Allowed range: 60 to 1800 seconds",
-                    "exp_blacklist_roles": "You can use the ID, mention or name of a role.\n "
-                                           "`add` to add a role, `remove` to remove a role"
+                    "exp_blacklist_roles": "You can use the ID, mention or name of a role.\n"
+                                           "`add` to add a role, `remove` to remove a role",
+                    "exp_level_roles": "You can use the ID, mention or name of a role.\n"
+                                           "`add` to add a role, `remove` to remove a role, `edit` to edit the "
+                                       "settings of an already added role.",
                 }
                 await response.channel.send(
                     f"Please input your new value for {setting.replace('_', ' ').capitalize()}\n"
@@ -129,7 +151,8 @@ class ServerSettings(commands.Cog, name="Server Settings"):
                 checks = {
                     "exp_amount": lambda m: int(m.content) in range(5, 500),
                     "exp_cooldown": lambda m: int(m.content) in range(30, 1800),
-                    "exp_blacklist_roles": self.exp_discord_object_handler
+                    "exp_blacklist_roles": self.exp_discord_object_handler,
+                    "exp_level_roles": self.exp_discord_object_handler,
                 }
                 task = self_object.ctx.bot.wait_for(
                     "message",
@@ -152,37 +175,56 @@ class ServerSettings(commands.Cog, name="Server Settings"):
                     response.guild.id,
                     {"$set": {setting: int(new_setting)}}
                 )
+                return True
             # handles the settings
             handle_setting = {
-                "exp_blacklist_roles": self.handle_exp_roles
+                "exp_blacklist_roles": self.handle_exp_roles,
+                "exp_level_roles": self.handle_exp_roles,
             }
-            await handle_setting.get(setting, set_setting)(self_object, new_setting, setting)
+            result = await handle_setting.get(setting, set_setting)(self_object, new_setting, setting)
+            if not result:
+                await self_object.ctx.send("Failed to change setting. Make sure that you have included all "
+                                           "required settings.")
             await self.bot.process_commands(self_object.ctx.message)
             return await self_object.close_paginator()
         except Exception as e:
-            print(e)
+            print(e, "error in exp settings")
             await self.msg.error_msg(self_object.ctx, "Command menu was closed!")
             return await self_object.close_paginator()
 
     @staticmethod
     def exp_discord_object_handler(message):
         input_ = message.content.split(" ")
-        if len(input_) != 2:
+        if len(input_) < 2:
             return False
-        if not input_[0] in ["add", "remove"]:
+        if not input_[0] in ["add", "remove", "edit"]:
             return False
         return True
 
     async def handle_exp_roles(self, ctx, response, setting) -> bool:
         """Set the roles for exp settings"""
         ctx = ctx.ctx
-        print(ctx)
-        print(response)
+        # Split the response
+        response = response.split(" ")
         try:
-            role = await self.role_converter.convert(ctx, response.split(" ")[1])
-            print(role.id)
-        except commands.BadArgument or commands.CommandError:
-            print("no")
+            # handle third values, handle missing values
+            role = await self.role_converter.convert(ctx, response[1])
+            thirdValue = ["exp_level_roles"]
+            if setting in thirdValue:
+                if len(response) < 3:
+                    return False
+                else:
+                    action = response[0]
+                    additional_settings = int(response[2])
+            else:
+                action = response[0]
+                if action not in ["add", "remove"]:
+                    raise commands.BadArgument
+                additional_settings = None
+            if not role:
+                raise commands.BadArgument
+            await self.sdb.edit_role_settings(ctx.guild.id, action, setting, role.id, additional_settings)
+        except commands.BadArgument or commands.CommandError or ValueError:
             return False
         else:
             return True

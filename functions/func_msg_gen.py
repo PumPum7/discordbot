@@ -1,3 +1,4 @@
+import copy
 from asyncio import TimeoutError as AsyncioTimeoutError, FIRST_COMPLETED as ASYNCIO_FIRST_COMPLETED, wait as async_wait
 from typing import Union
 
@@ -36,7 +37,6 @@ class MessageGenerator:
         """
         if color is None and embed.color == discord.Embed.Empty:
             colour = await ctx.get_embed_color()
-            colour = await self.converter.convert(ctx, colour)
         else:
             colour = color or embed.color
         embed.colour = colour
@@ -53,7 +53,6 @@ class MessageGenerator:
         :param ctx: commands.Context
             discord Context
         :param items
-            Max 10 items per page
         :param func: function
             function to be called on messages
         :param reactions: list
@@ -63,6 +62,7 @@ class MessageGenerator:
         :param close_after_func: bool
         :param timeout: int
         :param items_per_page: int
+            Max 10 items per page
         :type base_embed: discord.Embed
         """
         paginator = Paginator(ctx=ctx, reactions=reactions, timeout=timeout, func=func,
@@ -71,11 +71,12 @@ class MessageGenerator:
         # split the list into many small lists
         split_lists = self.split_list(list(items.items()), items_per_page)
         # create the embeds
-        for i in split_lists:
+        for item in split_lists:
             embed_copy = base_embed.copy()
-            description = "\n".join(f'{self.digits[i.index(setting) + 1] if func else ""} {setting[0].capitalize()}: '
-                                    f'{setting[1] or "Not set"}' for setting in i)
-            description = description.replace("[", "").replace("]", "").replace("'", "`").replace("_", " ") or "Not set"
+            description = "\n".join(f'{self.digits[item.index(setting) + 1] if func else ""} '
+                                    f'**{setting[0].capitalize()}**: '
+                                    f'{setting[1] if not None else "`Not set`"}' for setting in item)
+            description = description.replace("[", "").replace("]", "").replace("'", "").replace("_", " ") or "Not set"
             embed_copy.description = description
             paginator.add_page(embed_copy)
         return paginator
@@ -108,8 +109,6 @@ class Paginator:
         """
         if items is None:
             items = {}
-        if items is None:
-            items = {}
         self.controller = None
         self.reactions = reactions or ('⬅', '⏹', '➡')
         self.pages = []
@@ -124,20 +123,24 @@ class Paginator:
                                         and m.channel.id == self.controller.channel.id
         self.msg = MessageGenerator()
         self.items = items
+        self.author_check_reaction = lambda r, u: u.id == self.ctx.author.id \
+                                                  and r.emoji in self.reactions and r.message.id == self.controller.id
+        self.author_check_message = lambda m: self.ctx.author.id == m.author.id \
+                                              and m.channel.id == self.controller.channel.id
 
     async def close_paginator(self):
+        # cleanup
         try:
             await self.controller.delete()
+            del self.reactions
+            del self.pages
+            del self.current
+            del self.ctx
+            del self.timeout
+            del self.func
+            del self.close_after_func
         except Exception:
             pass
-        # cleanup
-        del self.reactions
-        del self.pages
-        del self.current
-        del self.ctx
-        del self.timeout
-        del self.func
-        del self.close_after_func
 
     def add_page(self, embed: discord.Embed):
         self.pages.append(embed)
@@ -152,23 +155,30 @@ class Paginator:
         pages = self.pages[start_page:] + self.pages[:start_page]
         if len(pages) != len(self.pages):
             raise IndexError(f"{start_page} is not a valid starting page!")
-
+        information_value = f"{'Respond with the numbers to change the settings or exit to close the menu.'}" \
+            if self.func else ""
+        if not pages[self.current].fields:
+            pages[self.current].add_field(
+                name="Information:",
+                value=f"Page: {self.current + 1}/{len(self.pages)}\n{information_value}"
+            )
         self.controller = await self.msg.message_sender(ctx=self.ctx, embed=pages[0])
         for emoji in self.reactions:
             await self.controller.add_reaction(emoji)
-        author_check = lambda r, u: u.id == self.ctx.author.id \
-                                    and r.emoji in self.reactions and r.message.id == self.controller.id
+
         while True:
             try:
+                # handle reactions
                 tasks = [
                     self.ctx.bot.wait_for('reaction_add',
-                                          timeout=self.timeout, check=author_check),
+                                          timeout=self.timeout, check=self.author_check_reaction),
                     self.ctx.bot.wait_for('reaction_remove',
-                                          timeout=self.timeout, check=author_check)]
+                                          timeout=self.timeout, check=self.author_check_reaction)]
+                # handle messages
                 if self.func_check:
                     tasks.append(
                         self.ctx.bot.wait_for("message",
-                                              timeout=self.timeout, check=self.func_check)
+                                              timeout=self.timeout, check=self.func_check and self.author_check_message)
                     )
 
                 tasks_result, tasks = await async_wait(tasks, return_when=ASYNCIO_FIRST_COMPLETED)
@@ -183,16 +193,27 @@ class Paginator:
             if type(response) == tuple:
                 if response[0].emoji == self.reactions[0]:
                     self.current = self.current - 1 if self.current > 0 else len(self.pages) - 1
-                    await self.controller.edit(embed=self.pages[self.current])
+                    await self.edit_controller(embed=self.pages[self.current])
 
                 elif response[0].emoji == self.reactions[1]:
                     break
 
                 elif response[0].emoji == self.reactions[2]:
                     self.current = self.current + 1 if self.current < len(self.pages) - 1 else 0
-                    await self.controller.edit(embed=self.pages[self.current])
+                    await self.edit_controller(embed=self.pages[self.current])
             else:
-                await self.func(response, self)
+                await self.func(response, copy.copy(self))
                 if self.close_after_func:
+                    await self.close_paginator()
                     break
         await self.close_paginator()
+
+    async def edit_controller(self, embed):
+        information_value = f"{'Respond with the numbers to change the settings or exit to close the menu.'}" \
+            if self.func else ""
+        if len(self.pages) > 1 and not embed.fields:
+            embed.add_field(
+                name="Information:",
+                value=f"Page: {self.current + 1}/{len(self.pages)}\n{information_value}"
+            )
+        await self.controller.edit(embed=embed)

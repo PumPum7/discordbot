@@ -1,6 +1,6 @@
 import datetime
 import motor.motor_asyncio
-from pymongo import ReturnDocument
+from pymongo import ReturnDocument, ASCENDING
 
 import bot_settings
 
@@ -22,11 +22,11 @@ class Database:
 class UserDatabase(Database):
     def __init__(self):
         super(UserDatabase, self).__init__()
-        self.economy_db = self.db.MemberServerInformation
+        self.local_db = self.db.MemberServerInformation
         self.collection = self.db.User
 
     def get_user_information(self, user_id: int, server_id: int):
-        information = self.economy_db.find({"user_id": user_id, "server_id": server_id})
+        information = self.local_db.find({"user_id": user_id, "server_id": server_id})
         return information
 
     def get_user_information_global(self, user_id: int):
@@ -42,7 +42,7 @@ class UserDatabase(Database):
         )
 
     async def set_setting_local(self, user_id: int, server_id: int, query: dict):
-        return await self.economy_db.find_one_and_update(
+        return await self.local_db.find_one_and_update(
             {"user_id": user_id, "server_id": server_id},
             query,
             upsert=True,
@@ -67,6 +67,13 @@ class UserDatabase(Database):
             server_id=server_id,
             amount=amount
         )
+
+    async def user_sort(self, server_id: int, setting: str, user_amount: int):
+        result = self.local_db.find({
+            "server_id": server_id,
+            setting: {"$gte": user_amount}
+        }).sort(setting, ASCENDING).hint([("exp_amount", ASCENDING)])
+        return await result.to_list(None)
 
 
 class ServerDatabase(Database):
@@ -94,11 +101,35 @@ class ServerDatabase(Database):
             query={query: {"prefix": prefix}}
         )
 
+    async def edit_role_settings(self, server_id: int, action: str, setting: str, role_id: int,
+                                 third_value: int = None):
+        """Add a role setting"""
+        query = "$addToSet" if action else "$pull"
+        if action == "edit":
+            # Needed for an update since it requires more things to be true
+            return await self.collection.find_one_and_update(
+                {"server_id": server_id, f"{setting}.role_id": role_id},
+                {"$set": {f"{setting}.$.required": third_value}},
+                upsert=True,
+                return_document=ReturnDocument.AFTER,
+            )
+        return await self.set_setting(
+            server_id=server_id,
+            query={query: {setting: {"role_id": role_id, "required": third_value} if third_value else role_id}}
+        )
+
 
 # test
+async def main():
+    db = UserDatabase()
+    res = await db.user_sort(server_id=330300161895038987,
+                             setting="exp_amount", user_amount=0)
+    print(res)
+
+
 if __name__ == '__main__':
     import asyncio
     import bot_settings
 
     loop = asyncio.get_event_loop()
-    db = UserDatabase()
+    loop.run_until_complete(main())
