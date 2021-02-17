@@ -94,6 +94,7 @@ class ServerSettings(commands.Cog, name="Server Settings"):
                                 else:
                                     role = role.mention
                                 values[values.index(v)] = [role, v[1]]
+                                # TODO: sort the values with sorted
                             embed.add_field(
                                 name=setting.replace("_", " ").capitalize(),
                                 value='\n'.join([f"{i[0]}: {i[1]} Exp" for i in values]),
@@ -142,7 +143,7 @@ class ServerSettings(commands.Cog, name="Server Settings"):
                                            "`add` to add a role, `remove` to remove a role",
                     "exp_level_roles": "You can use the ID, mention or name of a role.\n"
                                            "`add` to add a role, `remove` to remove a role, `edit` to edit the "
-                                       "settings of an already added role.",
+                                       "settings of an already added role.\nUsage: `add <role> <exp amount>`",
                 }
                 await response.channel.send(
                     f"Please input your new value for {setting.replace('_', ' ').capitalize()}\n"
@@ -188,6 +189,7 @@ class ServerSettings(commands.Cog, name="Server Settings"):
             await self.bot.process_commands(self_object.ctx.message)
             return await self_object.close_paginator()
         except Exception as e:
+            # TODO: add logging
             print(e, "error in exp settings")
             await self.msg.error_msg(self_object.ctx, "Command menu was closed!")
             return await self_object.close_paginator()
@@ -206,13 +208,19 @@ class ServerSettings(commands.Cog, name="Server Settings"):
         ctx = ctx.ctx
         # Split the response
         response = response.split(" ")
+        additional_settings = None
         try:
             # handle third values, handle missing values
             role = await self.role_converter.convert(ctx, response[1])
             thirdValue = ["exp_level_roles"]
             if setting in thirdValue:
                 if len(response) < 3:
-                    return False
+                    # handles if the action is remove because a third value is not required there
+                    if response[0] == "remove":
+                        print(response[0])
+                        action = response[0]
+                    else:
+                        raise commands.BadArgument
                 else:
                     action = response[0]
                     additional_settings = int(response[2])
@@ -220,11 +228,11 @@ class ServerSettings(commands.Cog, name="Server Settings"):
                 action = response[0]
                 if action not in ["add", "remove"]:
                     raise commands.BadArgument
-                additional_settings = None
             if not role:
                 raise commands.BadArgument
             await self.sdb.edit_role_settings(ctx.guild.id, action, setting, role.id, additional_settings)
-        except commands.BadArgument or commands.CommandError or ValueError:
+        except commands.BadArgument or commands.CommandError or ValueError as e:
+            print(e)
             return False
         else:
             return True
