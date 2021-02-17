@@ -4,7 +4,7 @@ from io import BytesIO
 import discord
 from discord.ext import commands
 
-from functions import func_database, func_msg_gen, func_client_grpc
+from functions import func_database, func_msg_gen, func_client_grpc, func_web, func_exp
 
 
 class ExpCommands(commands.Cog, name="Exp Commands"):
@@ -15,6 +15,7 @@ class ExpCommands(commands.Cog, name="Exp Commands"):
         self.msg = func_msg_gen.MessageGenerator()
         self.client_grpc = func_client_grpc.Generator()
 
+    # TODO: add cooldown after testing
     @commands.group(name="exp", aliases=["rank", "level"], invoke_without_command=True)
     @commands.guild_only()
     async def cmd_exp(self, ctx, user: discord.Member = None):
@@ -46,28 +47,45 @@ class ExpCommands(commands.Cog, name="Exp Commands"):
         # sends the exp message
         exp = exp[0] if exp else 0
         # downloads the profile picture and returns the bytes
-        avatar_img = await self.get_profile_bytes(str(user.avatar_url_as(format="png", size=128)))
+        avatar_img = await func_web.get_profile_bytes(str(user.avatar_url_as(format="png", size=128)))
+        # get the exp roles
+        exp_roles = server_settings.get("exp_level_roles", [])
+        # format the exp roles dict
+        exp_roles = [{"role": item["role_id"], "requirement": item["required"]} for item in exp_roles] \
+            if exp_roles else [{}] if exp_roles else exp_roles
+        # filter exp roles
+        exp_roles = func_exp.sort_roles(exp_roles, exp)
+        # create the Role object and set the requirement
+        next_role = exp_roles[1]
+        if len(next_role) == 0:
+            next_role = func_client_grpc.Role(
+                role_id=0,
+                role_name="All roles earned!"
+            )
+            requirement = 0
+        else:
+            role = discord.utils.get(id=next_role[0]["role"], iterable=ctx.guild.roles)  # creates a discord.Role object
+            if role:
+                requirement = next_role[0]["requirement"]
+                next_role = func_client_grpc.Role(
+                    role_id=role.id,
+                    role_name=role.name,
+                )
+            else:
+                requirement = next_role[0]["requirement"]
+                next_role = func_client_grpc.Role(
+                    role_id=123,
+                    role_name="Deleted role"
+                )
         # grpc call to the Level image generator
-        img = await self.client_grpc.get_level_image(exp, exp+10, f"#{position}", user.name, ctx.guild.name,
-                                                     "default", func_client_grpc.Role(role_id=12312, role_name="test"),
-                                                     avatar_img)
+        img = await self.client_grpc.get_level_image(exp, requirement, f"#{position}", user.name, ctx.guild.name,
+                                                     "default", next_role, avatar_img)
         # create a file like object and send the message
         fp = BytesIO(img)
         # TODO: add progress for levels + next role
         await ctx.send("Test", file=discord.File(fp=fp, filename="level_img.png"))
         fp.close()
         return
-
-    @staticmethod
-    async def get_profile_bytes(avatar_url: str):
-        # gets the avatar image as bytes
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url=avatar_url) as result:
-                if result.status != 200:
-                    return result.raise_for_status()
-                else:
-                    image = await result.read()
-        return image
 
     @cmd_exp.command(name="edit")
     async def cmd_exp_edit(self, ctx, action: str, amount: int, user: discord.Member):
