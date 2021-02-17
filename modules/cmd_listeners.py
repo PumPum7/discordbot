@@ -69,8 +69,8 @@ class ListenerTest(commands.Cog):
                 await self.handle_exp(message, server_information)
 
     async def handle_exp(self, message, server_information):
-        # get the required information and set exp
         # TODO: multiplier for certain roles
+        # get the required information and set exp
         exp_amount = server_information.get("exp_amount", bot_settings.default_exp["exp_amount"])
         cooldown = server_information.get("exp_cooldown", bot_settings.default_exp["exp_cooldown"])
         roles = server_information.get("exp_level_roles", bot_settings.default_exp["exp_level_roles"])
