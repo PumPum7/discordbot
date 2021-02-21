@@ -1,6 +1,6 @@
 import datetime
 import motor.motor_asyncio
-from pymongo import ReturnDocument, ASCENDING
+from pymongo import ReturnDocument, ASCENDING, DESCENDING
 
 import bot_settings
 
@@ -68,11 +68,17 @@ class UserDatabase(Database):
             amount=amount
         )
 
-    async def user_sort(self, server_id: int, setting: str, user_amount: int):
+    async def user_sort_exp(self, server_id: int, setting: str, user_amount: int):
         result = self.local_db.find({
             "server_id": server_id,
             setting: {"$gte": user_amount}
         }).sort(setting, ASCENDING).hint([("exp_amount", ASCENDING)])
+        return await result.to_list(None)
+
+    async def user_sort_exp_leaderboard(self, server_id: int, setting: str):
+        result = self.local_db.find({
+            "server_id": server_id
+        }).sort(setting, DESCENDING).hint([("exp_amount", ASCENDING)])
         return await result.to_list(None)
 
 
@@ -123,8 +129,7 @@ class ServerDatabase(Database):
 # test
 async def main():
     db = UserDatabase()
-    res = await db.user_sort(server_id=330300161895038987,
-                             setting="exp_amount", user_amount=0)
+    res = await db.user_sort_exp(server_id=330300161895038987, setting="exp_amount", user_amount=0)
     print(res)
 
 
