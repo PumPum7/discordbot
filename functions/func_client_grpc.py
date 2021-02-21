@@ -1,5 +1,7 @@
 import grpc
+
 from functions.grpc_functions import image_pb2_grpc, image_pb2
+import bot_settings
 
 
 class Role:
@@ -12,7 +14,7 @@ class Generator:
     @staticmethod
     async def get_level_image(exp: int, required_exp: float, position: str, user_name: str,
                               server_name: str, rank_card: str, next_role: Role, profile_picture: bytes) -> bytes:
-        async with grpc.aio.insecure_channel("localhost:50051") as channel:
+        async with grpc.aio.insecure_channel(bot_settings.grpc_settings["address"]) as channel:
             stub = image_pb2_grpc.GenerateImagesStub(channel)
             response = await stub.GenerateLevelImage(
                 image_pb2.LevelData(
@@ -25,7 +27,6 @@ class Generator:
 
 
 # TODO: write tests
-# TODO: add config file here
 
 async def main():
     generator = Generator()
