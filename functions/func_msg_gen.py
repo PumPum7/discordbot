@@ -30,8 +30,9 @@ class MessageGenerator:
     def msg_gen(ctx) -> str:
         return f"Command: {ctx.command.qualified_name} - **[ {ctx.author} ]**"
 
-    async def message_sender(self, ctx, embed: discord.Embed, color=None) -> discord.Message:
+    async def message_sender(self, ctx, embed: discord.Embed, color=None, file=None) -> discord.Message:
         """Generates the same embed for every command from a dict
+        :param file: discord.File
         :type color: object
         :type embed: discord.Embed
         """
@@ -40,7 +41,7 @@ class MessageGenerator:
         else:
             colour = color or embed.color
         embed.colour = colour
-        return await ctx.send(self.msg_gen(ctx), embed=embed)
+        return await ctx.send(self.msg_gen(ctx), embed=embed, file=file)
 
     async def error_msg(self, ctx, msg) -> discord.Message:
         embed = discord.Embed(title="Something went wrong!", description=msg, color=self.error_embed)
