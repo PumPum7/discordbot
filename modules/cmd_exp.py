@@ -15,7 +15,7 @@ class ExpCommands(commands.Cog, name="Exp Commands"):
         self.msg = func_msg_gen.MessageGenerator()
         self.client_grpc = func_client_grpc.Generator()
 
-    # TODO: add cooldown after testing
+    @commands.cooldown(1, 30, commands.BucketType.user)
     @commands.group(name="exp", aliases=["rank", "level"], invoke_without_command=True)
     @commands.guild_only()
     async def cmd_exp(self, ctx, user: discord.Member = None):
@@ -32,12 +32,9 @@ class ExpCommands(commands.Cog, name="Exp Commands"):
         if exp_enabled:
             # gets the leaderboard ranking for the user
             exp = await self.udb.get_user_information(user.id, ctx.guild.id).distinct("exp_amount")
-            users = await self.udb.user_sort(ctx.guild.id, "exp_amount", user_amount=exp[0] if exp else 0)
+            users = await self.udb.user_sort_exp(ctx.guild.id, "exp_amount", user_amount=exp[0] if exp else 0)
             position = "/"
-            for i in users:
-                if i.get("user_id", 0) == user.id:
-                    position = users.index(i) + 1
-                    break
+            position += self.get_position(users, user)
         else:
             return await self.msg.error_msg(
                 ctx=ctx,
@@ -82,8 +79,12 @@ class ExpCommands(commands.Cog, name="Exp Commands"):
                                                      "default", next_role, avatar_img)
         # create a file like object and send the message
         fp = BytesIO(img)
-        # TODO: add progress for levels + next role
-        await ctx.send("Test", file=discord.File(fp=fp, filename="level_img.png"))
+        level_img = discord.File(fp=fp, filename="level_img.png")
+        embed = discord.Embed(
+            title=f"{user}'s EXP"
+        )
+        embed.set_image(url="attachment://level_img.png")
+        await self.msg.message_sender(ctx, embed=embed, file=level_img)
         fp.close()
         return
 
@@ -123,6 +124,39 @@ class ExpCommands(commands.Cog, name="Exp Commands"):
                 msg=f"This server does not have exp enabled! "
                     f"You can enable it with `{ctx.prefix}sset exp`."
             )
+
+    @commands.command(name="leaderboard", aliases=["lb", "top"])
+    async def cmd_leaderboard(self, ctx, offset=0):
+        """Check the servers exp leaderboard."""
+        # get all users and then filter out by the offset
+        users = await self.udb.user_sort_exp_leaderboard(ctx.guild.id, "exp_amount")
+        filtered_users = users[offset:][:10]
+        embed = discord.Embed(
+            title="Leaderboard",
+            description=f"All time rankings for {ctx.guild.name}"
+        )
+        user_position = self.get_position(users, ctx.author)
+        embed.add_field(
+            name="💬 Your rank",
+            value=f"You are rank `#{user_position}`!"
+        )
+        # using mention is more API friendly and allows for no cooldown but there might be better ways to get the user
+        embed.add_field(
+            name="Leaderboard",
+            value="\n".join([f"#{filtered_users.index(i)+1} <@{i.get('user_id', False) or 'Not found'}> - "
+                             f"{i.get('exp_amount', 0)} exp" for i in filtered_users]),
+            inline=False
+        )
+        await self.msg.message_sender(ctx, embed)
+
+    @staticmethod
+    def get_position(users, user) -> str:
+        position = "Not found"
+        for i in users:
+            if i.get("user_id", 0) == user.id:
+                position = users.index(i) + 1
+                break
+        return str(position)
 
 
 def setup(bot):
