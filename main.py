@@ -6,28 +6,23 @@ from discord.ext import commands
 import os
 import traceback
 import asyncio
-import logging
-from logging.handlers import RotatingFileHandler
 
 import bot_settings
-from functions import func_msg_gen, func_database, func_context, func_prefix
+from functions import func_msg_gen, func_database, func_context, func_prefix, func_logs
 
-logger = logging.getLogger('discord')
-logger.setLevel(logging.ERROR)
-handler = RotatingFileHandler(filename='data/errors/errors_bot.log', encoding='utf-8', mode='a')
-handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
-logger.addHandler(handler)
 
 MSG_GENERATOR = func_msg_gen.MessageGenerator()
 
 UserDB = func_database.UserDatabase()
 ServerDB = func_database.ServerDatabase()
 Prefix = func_prefix.Prefix()
+Logger = func_logs.Log()
 
 
 class FullBot(commands.Bot):
     def __init__(self, command_prefix, **options):
         super().__init__(command_prefix, **options)
+        self.logger = Logger.logging
 
     async def get_context(self, message, *, cls=func_context.FullContext):
         return await super().get_context(message, cls=cls)
@@ -42,10 +37,10 @@ bot = FullBot(command_prefix=get_prefix, description="", case_insensitive=True)
 
 
 def error_handler(error):
-    # error handler
+    # error handler only used during the start up
     print("An error occurred:")
     traceback.print_exception(type(error), error, error.__traceback__)
-    logger.error(error)
+    Logger.logging.error(error)
     return False
 
 
@@ -116,7 +111,6 @@ async def on_ready():
 
 
 loop = asyncio.get_event_loop()
-
 
 bot.run(bot_settings.token, bot=True, reconnect=True)
 
