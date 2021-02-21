@@ -53,9 +53,8 @@ class EconomyCommands(commands.Cog, name="Economy Commands"):
 
     @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.command(name="blackjack", aliases=["bj"])
-    async def cmd_blackjack(self, ctx, bet_: func_economy.GlobalMoney):
+    async def cmd_blackjack(self, ctx, bet_: func_economy.LocalBalance):
         """Play blackjack with this command."""
-        # TODO: add emotes or even generated images for cards
         hand = {'bot': [], 'human': []}
         suits = ['c', 'h', 'd', 's']
         deck = []
@@ -136,10 +135,13 @@ class EconomyCommands(commands.Cog, name="Economy Commands"):
 
     @commands.command(name="claim", aliases=["work"])
     async def cmd_daily(self, ctx, user_: discord.User = None) -> discord.Message:
+        """Earn money."""
         # TODO: change to use server setting
         amount = bot_settings.daily_amount
         cooldown = 24
         user = user_ or ctx.author
+        if user.bot:
+            return await self.msg.error_msg(ctx, "Bot accounts can't get money!")
         # check if they cna claim it again
         information = await ctx.get_user_information()
         try:
@@ -169,9 +171,25 @@ class EconomyCommands(commands.Cog, name="Economy Commands"):
         embed.description = msg
         return await self.msg.message_sender(ctx, embed, color=colour)
 
+    @commands.command(name="give")
+    async def cmd_give(self, ctx, user: discord.Member, amount: func_economy.LocalBalance):
+        """Transfer your money to someone else"""
+        if user.bot:
+            await self.msg.error_msg(ctx, "You can't transfer money to a bot!")
+            return
+        amount, balance = amount
+        # Remove the money from the giver and add it to the receiver
+        await self.udb.edit_money(ctx.author.id, ctx.guild.id, -amount)
+        receiver_balance = await self.udb.edit_money(user.id, ctx.guild.id, amount)
+        receiver_balance = receiver_balance.get("balance", amount)
+        embed = discord.Embed(
+            title=f"Successfully transferred {amount} credits!",
+            description=f"{ctx.author.name}'s balance: {balance} credits\n"
+                        f"{user.name}'s balance: {receiver_balance} credits"
+        )
+        return await self.msg.message_sender(ctx, embed)
 
 # TODO: add server shop
-# TODO: add give command
 
 
 def setup(bot):
