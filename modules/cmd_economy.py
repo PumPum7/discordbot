@@ -28,8 +28,9 @@ class EconomyCommands(commands.Cog, name="Economy Commands"):
 
     @commands.command(name="balance", aliases=["wallet", "bal"])
     async def cmd_balance(self, ctx, user: discord.Member = None):
+        """Check another users balance."""
         user = user or ctx.author
-        information = await ctx.get_user_information()
+        information = await self.udb.get_user_information(user.id, ctx.guild.id).to_list(length=1)
         balance = information[0].get('balance', 0) if information else 0
         embed = discord.Embed(
             title=f"{user.display_name}'s balance:",
@@ -137,10 +138,19 @@ class EconomyCommands(commands.Cog, name="Economy Commands"):
     @commands.command(name="claim", aliases=["work"])
     async def cmd_daily(self, ctx, user_: discord.User = None) -> discord.Message:
         """Earn money."""
+        user = user_ or ctx.author
+        user_roles = [i.id for i in user.roles]
+
         server_information = await ctx.get_server_information()
         amount = server_information.get("income_daily", bot_settings.default_income["income_daily"])
         cooldown = server_information.get("income_daily_cooldown", bot_settings.default_income["income_daily_cooldown"])
-        user = user_ or ctx.author
+        role_multiplier = server_information.get("income_multiplier_roles",
+                                                 bot_settings.default_income["income_multiplier_roles"])
+        multiplier = 1
+        for role in [i for i in role_multiplier]:
+            if role["role_id"] in user_roles:
+                multiplier = role["value"]
+        amount *= multiplier
         if user.bot:
             return await self.msg.error_msg(ctx, "Bot accounts can't get money!")
         # check if they cna claim it again
@@ -190,8 +200,9 @@ class EconomyCommands(commands.Cog, name="Economy Commands"):
         )
         return await self.msg.message_sender(ctx, embed)
 
-# TODO: add server shop
-
 
 def setup(bot):
     bot.add_cog(EconomyCommands(bot))
+
+# TODO: add server shop
+
