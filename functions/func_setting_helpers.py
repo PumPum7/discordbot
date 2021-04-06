@@ -1,6 +1,8 @@
 import discord
 from discord.ext import commands
 
+import asyncio
+
 from functions import func_database, func_msg_gen, func_prefix, func_errors
 
 import bot_settings
@@ -70,20 +72,35 @@ class SettingHelper:
             current_setting = await ctx.get_server_information()
             current_setting = current_setting.get(setting, current_setting)
             if len(current_setting) > limits > -1:
-                raise func_errors.TooManyItems(f"You already have more than **{limits} "
-                                               f"{setting.replace('_', ' ')}**!")
+                raise func_errors.TooManyItems(
+                    f"You already have more than **{limits} "
+                    f"{setting.replace('_', ' ')}**!"
+                )
             # check if the role is already in the list
             try:
-                if role.id in [i["role_id"] for i in current_setting] and action != "edit":
-                    raise func_errors.DuplicateItem("You have already added this role! Use `edit` to edit the setting.")
+                if (
+                    role.id in [i["role_id"] for i in current_setting]
+                    and action == "add"
+                ):
+                    raise func_errors.DuplicateItem(
+                        "You have already added this role! Use `edit` to edit the setting."
+                    )
             except TypeError:
                 pass
-            await self.sdb.edit_role_settings(ctx.guild.id, action, setting, role.id, additional_settings, "value")
+            await self.sdb.edit_role_settings(
+                ctx.guild.id, action, setting, role.id, additional_settings, "value"
+            )
         except commands.BadArgument or commands.CommandError or ValueError as error:
             # handle specific errors which probably arent an error
-            self.bot.logger.info(f"An exception has occurred while handling exp role settings: {error}", error)
-            await self.msg.error_msg(ctx, "An error has occurred while handling role settings. "
-                                          "Please make sure that your input was correct.")
+            self.bot.logger.info(
+                f"An exception has occurred while handling exp role settings: {error}",
+                error,
+            )
+            await self.msg.error_msg(
+                ctx,
+                "An error has occurred while handling role settings. "
+                "Please make sure that your input was correct.",
+            )
             return False
         else:
             return True
@@ -99,14 +116,16 @@ class SettingHelper:
             return True
 
     @staticmethod
-    def setting_formatter(settings, setting_type, embed, guild_roles, items, default_settings: dict):
+    def setting_formatter(
+        settings, setting_type, embed, guild_roles, items, default_settings: dict
+    ):
         for setting in settings.keys():
             if setting.__contains__(setting_type):
                 items[setting] = settings.get(setting, default_settings[setting])
                 # if setting contains role do more
                 if setting.__contains__("role"):
                     role_setting = settings.get(setting, default_settings[setting])
-                    if role_setting is None:
+                    if role_setting is None or len(role_setting) == 0:
                         # handler if role setting is none
                         items[setting] = None
                     elif type(role_setting[0]) == dict:
@@ -132,16 +151,92 @@ class SettingHelper:
                             values = sorted(values, key=lambda x: x[1])
                             embed.add_field(
                                 name=setting.replace("_", " ").capitalize(),
-                                value='\n'.join([f"{i[0]}: {i[1]} {setting_type}" for i in values]),
-                                inline=False
+                                value="\n".join(
+                                    [f"{i[0]}: {i[1]} {setting_type}" for i in values]
+                                ),
+                                inline=False,
                             )
                         else:
                             embed.add_field(
                                 name=setting.replace("_", " ").capitalize(),
-                                value="\n".join([f"{i}" for i in values])
+                                value="\n".join([f"{i}" for i in values]),
                             )
 
                     else:
                         # otherwise just use the default
                         items[setting] = role_setting
         return items, embed
+
+    async def handle_settings(
+        self,
+        response,
+        self_object,
+        setting_category: str,
+        check_message: dict,
+        checks: dict,
+        handlers: dict,
+    ):
+        # handle exit
+        action = response.content.lower()
+        if action in ["exit", "cancel"]:
+            await self_object.ctx.send("Command menu closed!")
+            return await self_object.close_paginator()
+        # handle enabling/disabling
+        setting = (
+            list(self_object.items.keys())[int(response.content) - 1]
+            .lower()
+            .replace(" ", "_")
+        )
+        if action == "1":
+            new_setting = not self_object.items.get(
+                f"{setting_category.capitalize()} enabled", False
+            )
+        # everything else
+        else:
+            await response.channel.send(
+                f"Please input your new value for {setting.replace('_', ' ').capitalize()}\n"
+                f"{check_message.get(setting, '')}"
+            )
+            task = self_object.ctx.bot.wait_for(
+                "message", timeout=60, check=checks.get(setting, False)
+            )
+            # wait for the response
+            responded = False
+            while not responded:
+                try:
+                    result = await task
+                    new_setting = result.content
+                    responded = True
+                except asyncio.TimeoutError:
+                    await self.msg.error_msg(
+                        self_object.ctx, "Command menu was closed!"
+                    )
+                    responded = True
+                    return await self_object.close_paginator()
+
+        async def set_setting(*args):  # args is only a little workaround
+            if setting.__contains__("enabled"):
+                new_setting_formatted = bool(new_setting)
+            else:
+                new_setting_formatted = int(new_setting)
+
+            await self.sdb.set_setting(
+                response.guild.id, {"$set": {setting: new_setting_formatted}}
+            )
+            return True
+
+        # handles the settings
+        result = await handlers.get(setting, set_setting)(
+            self_object, new_setting, setting
+        )
+        if not result:
+            await self_object.ctx.send(
+                "Failed to change setting. Make sure that you have included all "
+                "required settings."
+            )
+        await self.bot.process_commands(self_object.ctx.message)
+        return await self_object.close_paginator()
+
+
+# TODO: add database adding to the role and channel handlers
+# TODO: multiplier setting (maybe combine with blacklist setting)
