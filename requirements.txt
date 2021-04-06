@@ -2,7 +2,7 @@ aiohttp==3.7.3
 async-timeout==3.0.1
 attrs==20.3.0
 chardet==3.0.4
-discord.py~=1.6.0
+discord.py~=1.7.1
 dnspython==2.0.0
 idna==2.10
 motor~=2.3.0
