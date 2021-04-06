@@ -11,3 +11,7 @@ class TooManyItems(commands.CommandError):
 
 class DuplicateItem(commands.CommandError):
     pass
+
+
+class WrongDateFormat(commands.CommandError):
+    pass
