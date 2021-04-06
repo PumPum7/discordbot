@@ -42,13 +42,11 @@ class ListenerTest(commands.Cog):
     #               f"Use `{ctx.prefix}help {ctx.command.qualified_name}` for more information."
     #     elif isinstance(error, commands.CommandOnCooldown):
     #         msg = str(error)
-    #     elif isinstance(error, func_errors.EconomyError):
+    #     elif isinstance(error, (func_errors.EconomyError, func_errors.WrongDateFormat, func_errors.DuplicateItem)):
     #         msg = str(error)
     #     elif isinstance(error, func_errors.TooManyItems):
     #         msg = str(error) + f"\nIf you want to add more items, remove another item or " \
     #                            f"consider donate here: {bot_settings.subscription_website}"
-    #     elif isinstance(error, func_errors.DuplicateItem):
-    #         msg = str(error)
     #     else:
     #         self.bot.logger.error(f"An errror occured in the {ctx.command} command: {error}")
     #         msg = "The error has been reported."
@@ -62,12 +60,18 @@ class ListenerTest(commands.Cog):
         if not self.cache:
             await self.create_cache()
         # handle user exp
-        exp_ = await self.cache.get(key=f"{message.author.id} - {message.guild.id}")
+        exp_ = await self.cache.get(key=f"{message.author.id} - {message.guild.id}exp")
         if not exp_:
             server_information = await self.sdb.get_server_information(message.guild.id).to_list(length=1)
             server_information = server_information[0] or {}
             if server_information.get("exp_enabled", False):
                 await self.handle_exp(message, server_information)
+        income_ = await self.cache.get(key=f"{message.author.id} - {message.guild.id}income")
+        if not income_:
+            server_information = await self.sdb.get_server_information(message.guild.id).to_list(length=1)
+            server_information = server_information[0] or {}
+            if server_information.get("income_enabled", False):
+                await self.handle_income(message, server_information)
 
     async def handle_exp(self, message, server_information):
         # TODO: multiplier for certain roles
@@ -79,7 +83,7 @@ class ListenerTest(commands.Cog):
         user_roles = [i.id for i in message.author.roles]
         if [i for i in roles_blacklisted if i["role_id"] in user_roles]:
             return
-        await self.cache.set(f"{message.author.id} - {message.guild.id}", 1, expire=cooldown)
+        await self.cache.set(f"{message.author.id} - {message.guild.id}exp", 1, expire=cooldown)
         result = await self.udb.set_setting_local(
             user_id=message.author.id,
             server_id=message.guild.id,
@@ -101,6 +105,30 @@ class ListenerTest(commands.Cog):
                                      f"{error}")
             finally:
                 return
+
+    async def handle_income(self, message, server_information):
+        # get the required information and set balance
+        income_amount = server_information.get("income_amount", bot_settings.default_income["income_amount"])
+        cooldown = server_information.get("income_cooldown", bot_settings.default_income["income_cooldown"])
+        roles_blacklisted = server_information.get("income_blacklist_roles",
+                                                   bot_settings.default_income["income_blacklist_roles"])
+
+        user_roles = [i.id for i in message.author.roles]
+        if [i for i in roles_blacklisted if i["role_id"] in user_roles]:
+            return
+        # role_multiplier = server_information.get("income_multiplier_roles",
+        #                                          bot_settings.default_income["income_multiplier_roles"])
+        # multiplier = 1
+        # for role in [i for i in role_multiplier]:
+        #     if role["role_id"] in user_roles:
+        #         multiplier = role["value"]
+        await self.cache.set(f"{message.author.id} - {message.guild.id}income", 1, expire=cooldown)
+        await self.udb.set_setting_local(
+            user_id=message.author.id,
+            server_id=message.guild.id,
+            query={"$inc": {"balance": income_amount}}
+        )
+
 
 def setup(bot):
     # bot.add_listener(on_command_error)
