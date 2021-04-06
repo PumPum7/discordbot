@@ -1,8 +1,7 @@
-import aiohttp
-from io import BytesIO
-
 import discord
 from discord.ext import commands
+
+from io import BytesIO
 
 from functions import func_database, func_msg_gen, func_client_grpc, func_web, func_exp
 
@@ -48,7 +47,7 @@ class ExpCommands(commands.Cog, name="Exp Commands"):
         # get the exp roles
         exp_roles = server_settings.get("exp_level_roles", [])
         # format the exp roles dict
-        exp_roles = [{"role": item["role_id"], "requirement": item["required"]} for item in exp_roles] \
+        exp_roles = [{"role": item["role_id"], "requirement": item["value"]} for item in exp_roles] \
             if exp_roles else [{}] if exp_roles else exp_roles
         # filter exp roles
         exp_roles = func_exp.sort_roles(exp_roles, exp)

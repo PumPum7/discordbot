@@ -1,12 +1,13 @@
+import discord
+from discord.ext import commands
+
 import asyncio
 import datetime
 import random
 
-import discord
-from discord.ext import commands
+from functions import func_msg_gen, func_economy, func_database
 
 import bot_settings
-from functions import func_msg_gen, func_economy, func_database
 
 
 class EconomyCommands(commands.Cog, name="Economy Commands"):
@@ -136,9 +137,9 @@ class EconomyCommands(commands.Cog, name="Economy Commands"):
     @commands.command(name="claim", aliases=["work"])
     async def cmd_daily(self, ctx, user_: discord.User = None) -> discord.Message:
         """Earn money."""
-        # TODO: change to use server setting
-        amount = bot_settings.daily_amount
-        cooldown = 24
+        server_information = await ctx.get_server_information()
+        amount = server_information.get("income_daily", bot_settings.default_income["income_daily"])
+        cooldown = server_information.get("income_daily_cooldown", bot_settings.default_income["income_daily_cooldown"])
         user = user_ or ctx.author
         if user.bot:
             return await self.msg.error_msg(ctx, "Bot accounts can't get money!")

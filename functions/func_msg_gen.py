@@ -203,7 +203,8 @@ class Paginator:
                     self.current = self.current + 1 if self.current < len(self.pages) - 1 else 0
                     await self.edit_controller(embed=self.pages[self.current])
             else:
-                await self.func(response, copy.copy(self))
+                if self.func:
+                    await self.func(response, copy.copy(self))
                 if self.close_after_func:
                     await self.close_paginator()
                     break

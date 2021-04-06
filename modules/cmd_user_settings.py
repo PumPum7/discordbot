@@ -1,11 +1,12 @@
-import random
-from typing import Union
-
 import discord
 from discord.ext import commands
 
-import bot_settings
+import random
+from typing import Union
+
 from functions import func_database, func_msg_gen, func_prefix
+
+import bot_settings
 
 
 class UserSettings(commands.Cog, name="User Settings"):

@@ -1,7 +1,8 @@
 from discord.ext import commands
 
-import bot_settings as bs
 from functions import func_database, func_errors
+
+import bot_settings as bs
 from data.blackjack import blackjack_emotes
 
 udb = func_database.UserDatabase()
@@ -21,7 +22,7 @@ class LocalBalance(commands.Converter):
         if argument < 1:
             raise func_errors.EconomyError("You can't use a negative amount of currency for this action!")
         information = await ctx.get_user_information()
-        balance: int = information[1].get("balance", 0) if information else 0 # gets the local balance
+        balance: int = information[1].get("balance", 0) if information else 0  # gets the local balance
         if argument > balance:
             raise func_errors.EconomyError(f"You only have {balance}{bs.currency_name}!")
         else:

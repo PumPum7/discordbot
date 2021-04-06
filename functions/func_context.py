@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 
 from functions import func_database
+
 import bot_settings
 
 udb = func_database.UserDatabase()

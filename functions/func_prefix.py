@@ -1,8 +1,10 @@
-import aioredis
 from discord.ext import tasks
 
-import bot_settings
+import aioredis
+
 from functions import func_database
+
+import bot_settings
 
 CACHE = None
 

@@ -108,21 +108,21 @@ class ServerDatabase(Database):
         )
 
     async def edit_role_settings(self, server_id: int, action: str, setting: str, role_id: int,
-                                 third_value: int = None):
+                                 third_value: int = None, third_value_settings: str = None):
         """Add a role setting"""
         query = "$addToSet" if action == "add" else "$pull"
         if action == "edit":
             # Needed for an update since it requires more things to be true
             return await self.collection.find_one_and_update(
                 {"server_id": server_id, f"{setting}.role_id": role_id},
-                {"$set": {f"{setting}.$.required": third_value}},
+                {"$set": {f"{setting}.$.{third_value_settings}": third_value}},
                 upsert=True,
                 return_document=ReturnDocument.AFTER,
             )
         return await self.set_setting(
             server_id=server_id,
-            query={query: {setting: {"role_id": role_id, "required": third_value}
-            if third_value else {"role_id": role_id}}}
+            query={query: {setting: {"role_id": role_id,
+                                     "required": third_value} if third_value else {"role_id": role_id}}}
         )
 
 
