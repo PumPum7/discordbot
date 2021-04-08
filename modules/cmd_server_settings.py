@@ -143,7 +143,13 @@ class ServerSettings(commands.Cog, name="Server Settings"):
             "income_tax_roles": "You can use the ID, mention or name of a role.\n"
                                 "`add` to add a role and `remove` to remove a role.\n"
                                 "Tax is the percentage which will be removed during `give` commands.\n"
-                                "Usage: `add/remove <role> <tax>`"
+                                "Usage: `add/remove <role> <tax>`",
+            "income_give_disallowed_roles": "You can use the ID, mention or name of a role.\n"
+                                            "`add` to add a role and `remove` to remove a role.\n"
+                                            "Usage: `add/remove <role>`",
+            "income_give_role_requirement": "You can use the ID, mention or name of a role.\n"
+                                            "`add` to add a role and `remove` to remove a role.\n"
+                                            "Usage: `add/remove <role>`",
         }
         checks = {
             "income_amount": lambda m: int(m.content) in range(5, 500),
@@ -153,11 +159,16 @@ class ServerSettings(commands.Cog, name="Server Settings"):
             "income_multiplier_roles": self.helper.settings_discord_object_handler,
             "income_blacklist_roles": self.helper.settings_discord_object_handler,
             "income_tax_roles": self.helper.settings_discord_object_handler,
+            "income_give_disallowed_roles": self.helper.settings_discord_object_handler,
+            "income_give_allowed_roles": self.helper.settings_discord_object_handler
+
         }
         handle_setting = {
             "income_blacklist_roles": self.helper.handle_roles,
             "income_multiplier_roles": self.helper.handle_roles,
-            "income_tax_roles": self.helper.handle_roles
+            "income_tax_roles": self.helper.handle_roles,
+            "income_give_disallowed_roles": self.helper.handle_roles,
+            "income_give_allowed_roles": self.helper.handle_roles,
         }
         paginator = self.msg.paginator_handler(
             ctx=ctx,

@@ -4,6 +4,7 @@ from discord.ext import commands
 import asyncio
 import datetime
 import random
+import typing
 
 from functions import func_msg_gen, func_economy, func_database
 
@@ -190,13 +191,43 @@ class EconomyCommands(commands.Cog, name="Economy Commands"):
             return
         amount, balance = amount
 
-        server_information = await ctx.get_server_information()
+        server_information: dict = await ctx.get_server_information()
+        user_roles: list = [i.id for i in ctx.author.roles]
+        allowed_trade: bool = False
+        # allowed roles overwrites blacklisted roles
+        allowed_roles = server_information.get("income_give_allowed_roles", [])
+        if allowed_roles:
+            for role in allowed_roles:
+                role_id = role.get("role_id", 0)
+                if role_id in user_roles:
+                    allowed_trade = True
+                    break
+        # blacklist should overwrite the whitelist
+        blacklisted_roles = server_information.get("income_give_disallowed_roles", [])
+        if blacklisted_roles:
+            for role in blacklisted_roles:
+                role_id = role.get("role_id", 0)
+                if role_id in user_roles:
+                    return await self.msg.message_sender(
+                        ctx, discord.Embed(
+                            title="You are not allowed to transfer credits!",
+                            description=f"The role <@&{role_id}> is not allowed to transfer credits!",
+                        )
+                    )
+        if not allowed_trade and allowed_roles:
+            return await self.msg.message_sender(
+                ctx, discord.Embed(
+                    title="You are not allowed to transfer credits!",
+                    description=f"You are missing an allowed role."
+                )
+            )
         tax = server_information.get("income_tax_roles", 0)
         if type(tax) == list:
-            user_roles = [i.id for i in user.roles]
             for role in tax:
                 if role.get("role_id", 0) in user_roles:
                     tax = role.get("value", tax)
+        if type(tax) == list:
+            tax = 0
         taxed_amount = amount - int(amount * (tax / 100))  # remove tax percentage from amount
         confirmation_num = str(random.randint(1000, 9999))
         confirm_embed = discord.Embed(
