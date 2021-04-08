@@ -141,7 +141,8 @@ class ServerSettings(commands.Cog, name="Server Settings"):
                                       "`add` to add a role and `remove` to remove a role\n"
                                       "Usage: `add/remove <role>`",
             "income_tax_roles": "You can use the ID, mention or name of a role.\n"
-                                "`add` to add a role and `remove` to remove a role\n"
+                                "`add` to add a role and `remove` to remove a role.\n"
+                                "Tax is the percentage which will be removed during `give` commands.\n"
                                 "Usage: `add/remove <role> <tax>`"
         }
         checks = {

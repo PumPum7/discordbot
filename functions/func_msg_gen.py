@@ -67,7 +67,8 @@ class MessageGenerator:
         :type base_embed: discord.Embed
         """
         paginator = Paginator(ctx=ctx, reactions=reactions, timeout=timeout, func=func,
-                              close_after_func=close_after_func, func_check=func_check, items=items)
+                              close_after_func=close_after_func, func_check=func_check, items=items,
+                              items_per_page=items_per_page)
         # default embed
         # split the list into many small lists
         split_lists = self.split_list(list(items.items()), items_per_page)
@@ -93,7 +94,7 @@ class MessageGenerator:
 
 class Paginator:
     def __init__(self, ctx: commands.Context, reactions: Union[list, tuple] = None, timeout: int = 120,
-                 func=None, close_after_func=True, func_check=None, items=None):
+                 func=None, close_after_func=True, func_check=None, items=None, items_per_page: int=5):
         """
 
         Parameters
@@ -128,6 +129,7 @@ class Paginator:
                                                   and r.emoji in self.reactions and r.message.id == self.controller.id
         self.author_check_message = lambda m: self.ctx.author.id == m.author.id \
                                               and m.channel.id == self.controller.channel.id
+        self.items_per_page = items_per_page
 
     async def close_paginator(self):
         # cleanup

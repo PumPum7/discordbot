@@ -183,7 +183,7 @@ class SettingHelper:
             return await self_object.close_paginator()
         # handle enabling/disabling
         setting = (
-            list(self_object.items.keys())[int(response.content) - 1]
+            list(self_object.items.keys())[int(response.content) - 1+self_object.items_per_page*self_object.current]
             .lower()
             .replace(" ", "_")
         )
