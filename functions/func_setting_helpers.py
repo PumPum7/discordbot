@@ -79,8 +79,8 @@ class SettingHelper:
             # check if the role is already in the list
             try:
                 if (
-                    role.id in [i["role_id"] for i in current_setting]
-                    and action == "add"
+                        role.id in [i["role_id"] for i in current_setting]
+                        and action == "add"
                 ):
                     raise func_errors.DuplicateItem(
                         "You have already added this role! Use `edit` to edit the setting."
@@ -117,7 +117,7 @@ class SettingHelper:
 
     @staticmethod
     def setting_formatter(
-        settings, setting_type, embed, guild_roles, items, default_settings: dict
+            settings, setting_type, embed, guild_roles, items, default_settings: dict
     ):
         for setting in settings.keys():
             if setting.__contains__(setting_type):
@@ -154,7 +154,7 @@ class SettingHelper:
                                 value="\n".join(
                                     [f"{i[0]}: {i[1]} {setting_type}" for i in values]
                                 ),
-                                inline=False,
+                                inline=len(values) <= 3,  # TODO: change this to only show the currently needed ones
                             )
                         else:
                             embed.add_field(
@@ -168,13 +168,13 @@ class SettingHelper:
         return items, embed
 
     async def handle_settings(
-        self,
-        response,
-        self_object,
-        setting_category: str,
-        check_message: dict,
-        checks: dict,
-        handlers: dict,
+            self,
+            response,
+            self_object,
+            setting_category: str,
+            check_message: dict,
+            checks: dict,
+            handlers: dict,
     ):
         # handle exit
         action = response.content.lower()
@@ -183,9 +183,9 @@ class SettingHelper:
             return await self_object.close_paginator()
         # handle enabling/disabling
         setting = (
-            list(self_object.items.keys())[int(response.content) - 1+self_object.items_per_page*self_object.current]
-            .lower()
-            .replace(" ", "_")
+            list(self_object.items.keys())[int(response.content) - 1 + self_object.items_per_page * self_object.current]
+                .lower()
+                .replace(" ", "_")
         )
         if action == "1":
             new_setting = not self_object.items.get(
@@ -236,7 +236,6 @@ class SettingHelper:
             )
         await self.bot.process_commands(self_object.ctx.message)
         return await self_object.close_paginator()
-
 
 # TODO: add database adding to the role and channel handlers
 # TODO: multiplier setting (maybe combine with blacklist setting)
