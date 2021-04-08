@@ -184,17 +184,41 @@ class EconomyCommands(commands.Cog, name="Economy Commands"):
 
     @commands.command(name="give")
     async def cmd_give(self, ctx, user: discord.Member, amount: func_economy.LocalBalance):
-        """Transfer your money to someone else"""
+        """Transfer your money to someone else."""
         if user.bot:
             await self.msg.error_msg(ctx, "You can't transfer money to a bot!")
             return
         amount, balance = amount
-        # Remove the money from the giver and add it to the receiver
-        await self.udb.edit_money(ctx.author.id, ctx.guild.id, -amount)
-        receiver_balance = await self.udb.edit_money(user.id, ctx.guild.id, amount)
+
+        server_information = await ctx.get_server_information()
+        tax = server_information.get("income_tax_roles", 0)
+        if type(tax) == list:
+            user_roles = [i.id for i in user.roles]
+            for role in tax:
+                if role.get("role_id", 0) in user_roles:
+                    tax = role.get("value", tax)
+        taxed_amount = amount - int(amount * (tax / 100))  # remove tax percentage from amount
+        confirmation_num = str(random.randint(1000, 9999))
+        confirm_embed = discord.Embed(
+            title=f"Confirm the transfer of {amount} credits",
+            description=f"Receiver: {user.mention}\n"
+                        f"Amount after {tax}% tax: {taxed_amount}\n"
+                        f"Reply with `{confirmation_num}` to confirm the transfer or `exit` to cancel the transfer!"
+        )
+        confirmation_msg = await self.msg.message_sender(ctx, confirm_embed, discord.Color.green())
+        confirm_result = await self.bot.wait_for(
+            "message", timeout=60, check=lambda m: (m.content == confirmation_num or m.content.lower() == "exit")
+                                                   and m.author == ctx.author
+        )
+        if confirm_result.content.lower() == "exit":
+            await confirmation_msg.delete()
+            return await self.msg.message_sender(ctx, discord.Embed(title="Successfully cancelled the trade!"))
+
+        await self.udb.edit_money(ctx.author.id, ctx.guild.id, -taxed_amount)
+        receiver_balance = await self.udb.edit_money(user.id, ctx.guild.id, taxed_amount)
         receiver_balance = receiver_balance.get("balance", amount)
         embed = discord.Embed(
-            title=f"Successfully transferred {amount} credits!",
+            title=f"Successfully transferred {taxed_amount} credits!",
             description=f"{ctx.author.name}'s balance: {balance} credits\n"
                         f"{user.name}'s balance: {receiver_balance} credits"
         )
@@ -205,4 +229,3 @@ def setup(bot):
     bot.add_cog(EconomyCommands(bot))
 
 # TODO: add server shop
-
