@@ -126,6 +126,37 @@ class ServerDatabase(Database):
         )
 
 
+class ItemDatabase(Database):
+    def __init__(self):
+        super(ItemDatabase, self).__init__()
+        self.item_db = self.db.ServerItems
+
+    async def get_items(self, server_id: int):
+        return self.item_db.find(
+            {"server_id": server_id}
+        )
+
+    async def get_item(self, server_id: int, item_id: str):
+        return await self.item_db.find_one(
+            filter={"server_id": server_id, "item_id": item_id}
+        )
+
+    async def create_item(self, server_id: int, item: dict):
+        result = await self.item_db.insert_one(
+            item
+        )
+        return result
+
+    async def edit_item(self, server_id: int, item_id: str, item: dict):
+        result = await self.item_db.find_one_and_update(
+            {"server_id": server_id, "item_id": item_id},
+            item,
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+        return result
+
+
 # test
 async def main():
     db = UserDatabase()
