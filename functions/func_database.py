@@ -141,7 +141,7 @@ class ItemDatabase(Database):
             filter={"server_id": server_id, "item_id": item_id}
         )
 
-    async def create_item(self, server_id: int, item: dict):
+    async def create_item(self, item: dict):
         result = await self.item_db.insert_one(
             item
         )
