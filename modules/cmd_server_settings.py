@@ -1,8 +1,6 @@
 import discord
 from discord.ext import commands
 
-import asyncio
-
 from functions import func_database, func_msg_gen, func_prefix, func_setting_helpers
 
 import bot_settings

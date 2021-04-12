@@ -258,5 +258,3 @@ class EconomyCommands(commands.Cog, name="Economy Commands"):
 
 def setup(bot):
     bot.add_cog(EconomyCommands(bot))
-
-# TODO: add server shop
