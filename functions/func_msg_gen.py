@@ -13,18 +13,7 @@ class MessageGenerator:
         self.color = bot_settings.embed_color
         self.error_embed = 0xff0000
         self.converter = commands.ColourConverter()
-        self.digits = {
-            10: ":keycap_10:",
-            9: ":nine:",
-            8: ":eight:",
-            7: ":seven:",
-            6: ":six:",
-            5: ":five:",
-            4: ":four:",
-            3: ":three:",
-            2: ":two:",
-            1: ":one:"
-        }
+        self.digits = bot_settings.digits
 
     @staticmethod
     def msg_gen(ctx) -> str:
