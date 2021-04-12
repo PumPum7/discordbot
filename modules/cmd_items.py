@@ -125,7 +125,8 @@ class ServerItems(commands.Cog, name="Server Items"):
                             )
                             return
             item["store"] = store_settings
-        await self.idb.create_item(ctx.guild.id, item)
+        await self.idb.create_item(item)
+        item.pop("_id")
         await ctx.send(embed=discord.Embed(
             title="Item successfully created!",
             description=f"Item Settings:\n```json\n{json.dumps(item, indent=4)}\n```"
