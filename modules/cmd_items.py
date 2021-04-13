@@ -22,6 +22,7 @@ class ServerItems(commands.Cog, name="Server Items"):
     @commands.guild_only()
     async def cmd_shop(self, ctx, item: str = None):
         """Buy new items from the servers shop."""
+        items = self.idb.get_items(server_id=ctx.guild.id)
         await ctx.send("not implemented currently", item)
 
     @commands.group(name="item", invoke_without_command=True)
@@ -83,7 +84,7 @@ class ServerItems(commands.Cog, name="Server Items"):
             response = await self.get_user_input(ctx, "text_settings",
                                                  "Please input a text which will be used for this text item!")
             item["information"] = {"text": response}
-        if item["available"]:
+        if item["available"].lower() == "true":
             store_settings = {
                 "price": "",
                 "stock": "",
@@ -153,12 +154,37 @@ class ServerItems(commands.Cog, name="Server Items"):
         await msg.delete()
         return response.content
 
+    @cmd_item.command(name="list")
+    @commands.has_permissions(manage_guild=True)
+    @commands.guild_only()
+    async def cmd_list_items(self, ctx):
+        """Get a list of all current items."""
+        items = await self.idb.get_items(ctx.guild.id)
+        base_embed = discord.Embed(
+            title="All server items:",
+            description=f"Use the `{ctx.prefix}item edit` command to edit items.",
+            color=bot_settings.embed_color
+        )
+        paginator = func_msg_gen.Paginator(ctx, None, 180, None, items_per_page=1)
+        embeds = []
+        async for item in items:
+            embed = base_embed.copy()
+            embed.add_field(
+                name=f"Item settings for " + item.get("name", "name"),
+                value=f"```json\n{json.dumps(item, indent=4)}\n```"
+            )
+            embeds.append(embed)
+        paginator.add_pages(embeds)
+        paginator_msg = await paginator.start_paginator()
+
     @cmd_item.command(name="remove", aliases=["delete"])
     @commands.has_permissions(manage_guild=True)
     @commands.guild_only()
-    async def cmd_remove_item(self, ctx, item: str = None):
-        # TODO: implement item deletion
-        await ctx.send("not implemented currently", item)
+    async def cmd_remove_item(self, ctx, item: str):
+        """Delete a specified item."""
+        result = await self.idb.delete_item(ctx.guild.id, item_id=item)
+        result = result.deleted_count
+        await ctx.send(f"Successfully deleted %s items." % result)
 
     @cmd_item.command(name="edit")
     @commands.has_permissions(manage_guild=True)

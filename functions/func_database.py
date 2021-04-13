@@ -133,7 +133,8 @@ class ItemDatabase(Database):
 
     async def get_items(self, server_id: int):
         return self.item_db.find(
-            {"server_id": server_id}
+            {"server_id": server_id},
+            projection={"_id": False}
         )
 
     async def get_item(self, server_id: int, item_id: str):
@@ -153,6 +154,12 @@ class ItemDatabase(Database):
             item,
             upsert=True,
             return_document=ReturnDocument.AFTER,
+        )
+        return result
+
+    async def delete_item(self, server_id: int, item_id: str):
+        result = await self.item_db.delete_one(
+            {"server_id": server_id, "item_id": item_id}
         )
         return result
 
