@@ -109,9 +109,6 @@ class Paginator:
         self.func = func
         self.close_after_func = close_after_func
         self.func_check = func_check
-        if not self.func_check:
-            self.func_check = lambda m: self.ctx.author.id == m.author.id \
-                                        and m.channel.id == self.controller.channel.id
         self.msg = MessageGenerator()
         self.items = items
         self.author_check_reaction = lambda r, u: u.id == self.ctx.author.id \
