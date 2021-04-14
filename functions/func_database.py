@@ -142,6 +142,11 @@ class ItemDatabase(Database):
             filter={"server_id": server_id, "item_id": item_id}
         )
 
+    async def get_shop_items(self, server_id: int):
+        return self.item_db.find(
+            {"server_id": server_id, "available": "true"}
+        )
+
     async def create_item(self, item: dict):
         result = await self.item_db.insert_one(
             item
