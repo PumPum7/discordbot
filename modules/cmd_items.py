@@ -22,8 +22,50 @@ class ServerItems(commands.Cog, name="Server Items"):
     @commands.guild_only()
     async def cmd_shop(self, ctx, item: str = None):
         """Buy new items from the servers shop."""
-        items = self.idb.get_items(server_id=ctx.guild.id)
-        await ctx.send("not implemented currently", item)
+        items = await self.idb.get_shop_items(server_id=ctx.guild.id)
+        item_list = []
+        async for item in items:
+            item_list.append(item)
+        user_information = await ctx.get_user_information()
+        color = user_information[0].get("embed_color", bot_settings.embed_color)
+        embeds = self.shop_embed_generator(item_list, color)
+        paginator = func_msg_gen.Paginator(ctx, timeout=180, items=items, items_per_page=6)
+        for embed in embeds:
+            paginator.add_page(embed)
+        # TODO: add the buyer functions
+        # TODO: add a search for item handler
+        # TODO: show somehow if user cant buy the item
+        # TODO: show current balance in the base embed
+        await paginator.start_paginator(0)
+
+    def shop_embed_generator(self, items, color) -> [discord.Embed]:
+        try:
+            item_length: int = len(items)
+        except TypeError:
+            item_length: int = 0
+        if item_length == 0:
+            empty_embed = discord.Embed(
+                title="Item shop",
+                description="There are no items available in this server!"
+            )
+            return [empty_embed]
+        items = self.msg.split_list(items, 6)
+        embeds = []
+        base_embed = discord.Embed(
+            title="Item Shop",
+            description="Respond with the number next to the item to buy it.",
+            color=color
+        )
+        for item_page in items:
+            item_embed = base_embed.copy().add_field(
+                name="Items:",
+                value="\n".join([f"{bot_settings.digits[item_page.index(i) + 1]} {i.get('emoji', '')} "
+                                 f"**{i.get('name')}**\n"
+                                 f"`{i['store'].get('price', 0)}` {bot_settings.currency_name} | Type `{i.get('type')}`"
+                                 for i in item_page])
+            )
+            embeds.append(item_embed)
+        return embeds
 
     @commands.group(name="item", invoke_without_command=True)
     @commands.guild_only()
@@ -170,12 +212,12 @@ class ServerItems(commands.Cog, name="Server Items"):
         async for item in items:
             embed = base_embed.copy()
             embed.add_field(
-                name=f"Item settings for " + item.get("name", "name"),
+                name=f"Item settings for " + item.get("name", "Name"),
                 value=f"```json\n{json.dumps(item, indent=4)}\n```"
             )
             embeds.append(embed)
         paginator.add_pages(embeds)
-        paginator_msg = await paginator.start_paginator()
+        await paginator.start_paginator()
 
     @cmd_item.command(name="remove", aliases=["delete"])
     @commands.has_permissions(manage_guild=True)
