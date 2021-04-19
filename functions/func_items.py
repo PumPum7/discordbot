@@ -104,17 +104,30 @@ async def shop_choice_handler(response: discord.Message, self_object):
         # check if the item is still available
         if store_information["stock"] == 0:
             return await MSG.error_msg(ctx, "There is no stock left for this item!")
-        # check if the user already has the item, if yes add to amount
-        if user_item:
-            await USER_DB.user_add_owned_item(user_id=ctx.author.id, server_id=ctx.guild.id,
-                                              item_id=selected_item["item_id"])
-        else:
-            await USER_DB.user_add_item(user_id=ctx.author.id, server_id=ctx.guild.id, item=selected_item)
+        # add the item to the user
+        await add_item(ctx, user_item, selected_item)
         await USER_DB.edit_money(user_id=ctx.author.id, server_id=ctx.guild.id, amount=-store_information["price"])
         await ITEM_DB.remove_stock(server_id=ctx.author.id, item_id=selected_item["item_id"])
         return await ctx.send("Successfully purchased the item!")
     else:
         return await MSG.error_msg(ctx, "Invalid response, please try again!")
+
+
+async def add_item(ctx, user_item: dict, selected_item: dict, user_id: int = None):
+    if user_item:
+        await USER_DB.user_change_usage_amount_item(user_id=user_id or ctx.author.id, server_id=ctx.guild.id,
+                                                    item_id=selected_item["item_id"], usage=0, amount=1)
+    else:
+        await USER_DB.user_add_item(user_id=user_id or ctx.author.id, server_id=ctx.guild.id, item=selected_item)
+
+
+async def remove_item(ctx, user_item: dict, selected_item: dict, user_id: int = None):
+    if user_item:
+        await USER_DB.user_change_usage_amount_item(user_id=user_id or ctx.author.id, server_id=ctx.guild.id,
+                                                    item_id=selected_item["item_id"], usage=0, amount=-1)
+    else:
+        await USER_DB.remove_item(user_id=user_id or ctx.author.id, server_id=ctx.guild.id,
+                                  item_id=selected_item["item_id"])
 
 
 def shop_item_embed(item: dict, color, user_balance: int, user_item: dict) -> discord.Embed:
@@ -205,6 +218,7 @@ def item_usage_embed(user_item: dict, item: dict, color) -> discord.Embed:
         name="Item description:",
         value=item.get("description", "No description set.")
     )
+    embed.add_field(name="Item ID:", value=f"`{user_item.get('item_id')}`")
     return embed
 
 
@@ -276,3 +290,10 @@ async def item_choice_handler(response: discord.Message, self_object):
             await USER_DB.user_change_usage_amount_item(ctx.author.id, ctx.guild.id, selected_item["item_id"], 1, 0)
     else:
         return await MSG.error_msg(ctx, "Invalid response, please try again!")
+
+
+def find_item_from_id(items: list, input_id: str) -> dict:
+    for user_item in items:
+        if user_item["item_id"] == input_id:
+            return user_item
+    return {}
