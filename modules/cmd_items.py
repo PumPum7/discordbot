@@ -3,8 +3,9 @@ from discord.ext import commands
 
 import asyncio
 import json
+import re
 
-from functions import func_database, func_msg_gen, func_setting_helpers
+from functions import func_database, func_msg_gen, func_setting_helpers, func_shop
 
 import bot_settings
 
@@ -20,16 +21,22 @@ class ServerItems(commands.Cog, name="Server Items"):
 
     @commands.command(name="shop", aliases=["store"])
     @commands.guild_only()
-    async def cmd_shop(self, ctx, item: str = None):
+    async def cmd_shop(self, ctx, *item: str):
         """Buy new items from the servers shop."""
-        items = await self.idb.get_shop_items(server_id=ctx.guild.id)
+        if len(item) == 0:
+            items = await self.idb.get_shop_items(server_id=ctx.guild.id)
+        else:
+            item = "".join(item)
+            items = await self.idb.search_shop_items(server_id=ctx.guild.id, search=item)
         item_list = []
         async for item in items:
             item_list.append(item)
         user_information = await ctx.get_user_information()
         color = user_information[0].get("embed_color", bot_settings.embed_color)
-        embeds = self.shop_embed_generator(item_list, color)
-        paginator = func_msg_gen.Paginator(ctx, timeout=180, items=items, items_per_page=6)
+        embeds = func_shop.shop_embed_generator(item_list, color, user_information[1])
+        paginator = func_msg_gen.Paginator(ctx, timeout=180, items=item_list, items_per_page=6,
+                                           func=func_shop.shop_choice_handler, close_after_func=True,
+                                           func_check=lambda m: 0 < int(m.content) < 7)
         for embed in embeds:
             paginator.add_page(embed)
         # TODO: add the buyer functions
@@ -38,40 +45,23 @@ class ServerItems(commands.Cog, name="Server Items"):
         # TODO: show current balance in the base embed
         await paginator.start_paginator(0)
 
-    def shop_embed_generator(self, items, color) -> [discord.Embed]:
-        try:
-            item_length: int = len(items)
-        except TypeError:
-            item_length: int = 0
-        if item_length == 0:
-            empty_embed = discord.Embed(
-                title="Item shop",
-                description="There are no items available in this server!"
-            )
-            return [empty_embed]
-        items = self.msg.split_list(items, 6)
-        embeds = []
-        base_embed = discord.Embed(
-            title="Item Shop",
-            description="Respond with the number next to the item to buy it.",
-            color=color
-        )
-        for item_page in items:
-            item_embed = base_embed.copy().add_field(
-                name="Items:",
-                value="\n".join([f"{bot_settings.digits[item_page.index(i) + 1]} {i.get('emoji', '')} "
-                                 f"**{i.get('name')}**\n"
-                                 f"`{i['store'].get('price', 0)}` {bot_settings.currency_name} | Type `{i.get('type')}`"
-                                 for i in item_page])
-            )
-            embeds.append(item_embed)
-        return embeds
-
     @commands.group(name="item", invoke_without_command=True)
     @commands.guild_only()
-    async def cmd_item(self, ctx, item: str = None):
-        """Check your items and use them."""
-        await ctx.send("not implemented currently", item)
+    async def cmd_item(self, ctx, *item_search):
+        """Check your items and use them. Search supports regex search"""
+        found_items: list = []
+        item_search: str = " ".join(item_search).lower()
+        _, luser_information = await ctx.get_user_information()
+        items = luser_information.get("items", [])
+        if item_search:
+
+            for item in items:
+                if re.search(item_search, item.get("name", "").lower()):
+                    found_items.append(item)
+        else:
+            found_items = items
+        print(found_items)
+        await ctx.send("works?")
 
     @cmd_item.command(name="add")
     @commands.has_permissions(manage_guild=True)
@@ -95,7 +85,7 @@ class ServerItems(commands.Cog, name="Server Items"):
             "description": "Please input an item description.",
             "available": "Do you want the item to be available in the shop? Input has to be either `true` or `false`",
             "usable_amount": "Please enter the usable amount. This can be 0 for not usable, -1 for unlimited uses "
-                             "or any other number",
+                             "or any other number.",
             "emoji": "Please enter an emoji for the item. It has to be an emoji from the server or a standard "
                      "discord emoji"
         }
@@ -135,9 +125,10 @@ class ServerItems(commands.Cog, name="Server Items"):
             }
             store_settings_text = {
                 "price": "Please input a price for the item.",
-                "stock": "Please input the stock for this item.",
+                "stock": "Please input the stock for this item. -1 will set the stock to unlimited ",
                 "requirement": "Please input a required role for this item. This can be `none` for no required role.",
-                "max_amount": "Please input a max amount of items a user can have in their inventory."
+                "max_amount": "Please input a max amount of items a user can have in their inventory. "
+                              "This can be 0 for not buyable, -1 for unlimited or any other number."
             }
             for store_setting in store_settings.keys():
                 response = await self.get_user_input(ctx, store_setting, store_settings_text[store_setting])

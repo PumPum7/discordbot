@@ -83,7 +83,7 @@ class MessageGenerator:
 
 class Paginator:
     def __init__(self, ctx: commands.Context, reactions: Union[list, tuple] = None, timeout: int = 120,
-                 func=None, close_after_func=True, func_check=None, items=None, items_per_page: int=5):
+                 func=None, close_after_func=True, func_check=None, items=None, items_per_page: int = 5):
         """
 
         Parameters
@@ -101,13 +101,13 @@ class Paginator:
         if items is None:
             items = {}
         self.controller = None
-        self.reactions = reactions or ('⬅', '⏹', '➡')
-        self.pages = []
-        self.current = 0
-        self.ctx = ctx
-        self.timeout = timeout
+        self.reactions: tuple = reactions or ('⬅', '⏹', '➡')
+        self.pages: list = []
+        self.current: int = 0
+        self.ctx: commands.Context = ctx
+        self.timeout: int = timeout
         self.func = func
-        self.close_after_func = close_after_func
+        self.close_after_func: bool = close_after_func
         self.func_check = func_check
         self.msg = MessageGenerator()
         self.items = items
@@ -115,7 +115,7 @@ class Paginator:
                                                   and r.emoji in self.reactions and r.message.id == self.controller.id
         self.author_check_message = lambda m: self.ctx.author.id == m.author.id \
                                               and m.channel.id == self.controller.channel.id
-        self.items_per_page = items_per_page
+        self.items_per_page: int = items_per_page
 
     async def close_paginator(self):
         # cleanup
@@ -178,6 +178,9 @@ class Paginator:
                     response = await task
             except AsyncioTimeoutError:
                 break
+            except Exception as e:
+                print("vbasd")
+                pass
 
             if type(response) == tuple:
                 if response[0].emoji == self.reactions[0]:
