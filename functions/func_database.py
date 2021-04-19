@@ -81,6 +81,57 @@ class UserDatabase(Database):
         }).sort(setting, DESCENDING).hint([("exp_amount", ASCENDING)])
         return await result.to_list(None)
 
+    async def user_add_item(self, user_id: int, server_id: int, item: dict):
+        return await self.set_setting_local(
+            user_id=user_id,
+            server_id=server_id,
+            query={"$addToSet": {"items": {
+                "item_id": item["item_id"],
+                "name": item["name"],
+                "usage": 0,
+                "amount": 1
+            }}}
+        )
+
+    async def user_add_owned_item(self, user_id: int, server_id: int, item_id: str):
+        result = await self.local_db.find_one_and_update(
+            {"user_id": user_id, "server_id": server_id},
+            {"$inc": {"items.$[item].amount": 1}},
+            array_filters=[{"item.item_id": item_id}],
+            upsert=True,
+            return_document=ReturnDocument.AFTER
+        )
+        return result
+
+    async def user_use_item(self, user_id: int, server_id: int, item_id: str):
+        result = await self.local_db.find_one_and_update(
+            {"user_id": user_id, "server_id": server_id},
+            {"$inc": {f"items.$[item].usage": 1, "items.$[item].amount": -1}},
+            array_filters=[{"item.item_id": item_id}],
+            upsert=True,
+            return_document=ReturnDocument.AFTER
+        )
+        return result
+
+    async def remove_item(self, user_id: int, server_id: int, item_id: str):
+        return await self.set_setting_local(
+            user_id=user_id,
+            server_id=server_id,
+            query={"$pull": {"items": {"item_id": item_id}}}
+        )
+
+    async def get_item(self, user_id: int, server_id: int, item_id: str):
+        result = await self.local_db.find_one(
+            {"user_id": user_id, "server_id": server_id, "items": {"$elemMatch": {"item_id": item_id}}}
+        )
+        return result
+
+    async def search_items(self, user_id: int, server_id: int, search: str):
+        result = self.local_db.find(
+            {"user_id": user_id, "server_id": server_id, "$text": {"$search": search}}
+        )
+        return result
+
 
 class ServerDatabase(Database):
     def __init__(self):
@@ -137,6 +188,12 @@ class ItemDatabase(Database):
             projection={"_id": False}
         )
 
+    async def search_items(self, server_id: int, search: str):
+        return self.item_db.find(
+            {"server_id": server_id, "$text": {"$search": search}},
+            projection={"_id": False}
+        )
+
     async def get_item(self, server_id: int, item_id: str):
         return await self.item_db.find_one(
             filter={"server_id": server_id, "item_id": item_id}
@@ -145,6 +202,12 @@ class ItemDatabase(Database):
     async def get_shop_items(self, server_id: int):
         return self.item_db.find(
             {"server_id": server_id, "available": "true"}
+        )
+
+    async def search_shop_items(self, server_id: int, search: str):
+        return self.item_db.find(
+            {"server_id": server_id, "$text": {"$search": search}, "available": "true"},
+            projection={"_id": False}
         )
 
     async def create_item(self, item: dict):
@@ -156,7 +219,7 @@ class ItemDatabase(Database):
     async def edit_item(self, server_id: int, item_id: str, item: dict):
         result = await self.item_db.find_one_and_update(
             {"server_id": server_id, "item_id": item_id},
-            item,
+            {"$set": item},
             upsert=True,
             return_document=ReturnDocument.AFTER,
         )
@@ -165,6 +228,15 @@ class ItemDatabase(Database):
     async def delete_item(self, server_id: int, item_id: str):
         result = await self.item_db.delete_one(
             {"server_id": server_id, "item_id": item_id}
+        )
+        return result
+
+    async def remove_stock(self, server_id: int, item_id: str):
+        result = await self.item_db.find_one_and_update(
+            {"server_id": server_id, "item_id": item_id},
+            {"$inc": {"store.stock": -1}},
+            return_document=ReturnDocument.AFTER,
+            upsert=False
         )
         return result
 
