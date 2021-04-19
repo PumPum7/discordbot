@@ -5,7 +5,7 @@ chardet==3.0.4
 discord.py~=1.7.1
 dnspython==2.0.0
 idna==2.10
-motor~=2.3.0
+motor~=2.4.0
 multidict==4.7.6
 pymongo~=3.11.2
 typing-extensions==3.7.4.3
