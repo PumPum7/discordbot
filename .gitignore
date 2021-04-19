@@ -4,3 +4,4 @@ data/errors
 __pycache__
 venv
 .idea
+/.vscode/
