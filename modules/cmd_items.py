@@ -64,6 +64,70 @@ class ServerItems(commands.Cog, name="Server Items"):
             paginator.add_page(embed)
         await paginator.start_paginator(0)
 
+    @cmd_item.command(name="transfer")
+    @commands.guild_only()
+    async def cmd_item_transfer(self, ctx, user: discord.Member, item: str):
+        """Transfer an item to another user. You have to use the item id here
+        (you can find it in the item command menu)"""
+        if user == ctx.author:
+            return await self.msg.error_msg(ctx, "You cannot transfer an item to yourself!")
+        if user.bot:
+            return await self.msg.error_msg(ctx, "You cannot transfer an item to a bot!")
+        guser_information, luser_information = await ctx.get_user_information()
+        found_item = func_items.find_item_from_id(luser_information.get("items", []), item)
+        if not found_item:
+            return await self.msg.error_msg(ctx, f"No item was found with the id `{item}`")
+        if found_item["amount"] == 0:
+            return await self.msg.error_msg(ctx, "You don't have this item anymore!")
+        msg = await ctx.send(
+            embed=discord.Embed(
+                title="Transfer menu",
+                description=f"Would you like to trade the item `{found_item['name']}` with the user {user.mention}?\n"
+                            f"You currently have this item `{found_item['amount']}` times",
+                color=discord.Color.green()
+            ).set_footer(
+                text="Reply with confirm or cancel."
+            )
+        )
+        try:
+            response = await ctx.bot.wait_for(
+                "message",
+                check=lambda m: m.author == ctx.author
+                                and m.channel == ctx.channel
+                                and m.content.lower() in ["confirm", "cancel"],
+                timeout=180
+            )
+        except asyncio.TimeoutError:
+            await msg.delete()
+            return await self.msg.error_msg(ctx, "The transfer has timed out!")
+        response = response.content.lower()
+        if response == "confirm":
+            try:
+                receiver_information = await self.udb.get_user_information(user.id, ctx.guild.id).to_list(length=1)
+                receiver_information = receiver_information[0]
+                receiver_item = func_items.find_item_from_id(receiver_information.get("items", []),
+                                                             found_item["item_id"])
+                print(receiver_item)
+            except IndexError:
+                receiver_item = {}
+            print(found_item, receiver_item)
+            await func_items.remove_item(ctx, found_item, found_item)
+            await func_items.add_item(ctx, receiver_item, found_item, user_id=user.id)
+            return await msg.edit(
+                embed=discord.Embed(
+                    title="Successful transfer!",
+                    description=f"{user.mention} has successfully received your `{found_item['name']}` item!",
+                    color=discord.Color.green()
+                )
+            )
+        return await msg.edit(
+            embed=discord.Embed(
+                title="Transfer successfully cancelled!",
+                description=f"{user.mention} has not received your `{found_item['name']}` item!",
+                color=discord.Color.red()
+            )
+        )
+
     @cmd_item.command(name="add")
     @commands.has_permissions(manage_guild=True)
     @commands.guild_only()
@@ -218,7 +282,9 @@ class ServerItems(commands.Cog, name="Server Items"):
         """Delete a specified item."""
         result = await self.idb.delete_item(ctx.guild.id, item_id=item)
         result = result.deleted_count
-        await ctx.send(f"Successfully deleted %s items." % result)
+        if result:
+            return await ctx.send(f"Successfully deleted the item {item}!")
+        return await ctx.send(f"Failed to delete the item {item}! Please make sure that the item is correct")
 
     @cmd_item.command(name="edit")
     @commands.has_permissions(manage_guild=True)
