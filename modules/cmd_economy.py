@@ -144,7 +144,7 @@ class EconomyCommands(commands.Cog, name="Economy Commands"):
 
         server_information = await ctx.get_server_information()
         amount = server_information.get("income_daily", bot_settings.default_income["income_daily"])
-        cooldown = server_information.get("income_daily_cooldown", bot_settings.default_income["income_daily_cooldown"])
+        cooldown = server_information.get("income_hourly_cooldown", bot_settings.default_income["income_daily_cooldown"])
         role_multiplier = server_information.get("income_multiplier_roles",
                                                  bot_settings.default_income["income_multiplier_roles"])
         multiplier = 1
