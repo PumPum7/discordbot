@@ -179,7 +179,6 @@ class Paginator:
             except AsyncioTimeoutError:
                 break
             except Exception as e:
-                print("vbasd")
                 pass
 
             if type(response) == tuple:
