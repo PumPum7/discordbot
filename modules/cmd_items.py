@@ -5,7 +5,7 @@ import asyncio
 import json
 import re
 
-from functions import func_database, func_msg_gen, func_setting_helpers, func_shop
+from functions import func_database, func_msg_gen, func_setting_helpers, func_items
 
 import bot_settings
 
@@ -33,16 +33,12 @@ class ServerItems(commands.Cog, name="Server Items"):
             item_list.append(item)
         user_information = await ctx.get_user_information()
         color = user_information[0].get("embed_color", bot_settings.embed_color)
-        embeds = func_shop.shop_embed_generator(item_list, color, user_information[1])
+        embeds = func_items.shop_embed_generator(item_list, color, user_information[1])
         paginator = func_msg_gen.Paginator(ctx, timeout=180, items=item_list, items_per_page=6,
-                                           func=func_shop.shop_choice_handler, close_after_func=True,
+                                           func=func_items.shop_choice_handler, close_after_func=True,
                                            func_check=lambda m: 0 < int(m.content) < 7)
         for embed in embeds:
             paginator.add_page(embed)
-        # TODO: add the buyer functions
-        # TODO: add a search for item handler
-        # TODO: show somehow if user cant buy the item
-        # TODO: show current balance in the base embed
         await paginator.start_paginator(0)
 
     @commands.group(name="item", invoke_without_command=True)
@@ -51,17 +47,22 @@ class ServerItems(commands.Cog, name="Server Items"):
         """Check your items and use them. Search supports regex search"""
         found_items: list = []
         item_search: str = " ".join(item_search).lower()
-        _, luser_information = await ctx.get_user_information()
+        guser_information, luser_information = await ctx.get_user_information()
         items = luser_information.get("items", [])
         if item_search:
-
             for item in items:
                 if re.search(item_search, item.get("name", "").lower()):
                     found_items.append(item)
         else:
             found_items = items
-        print(found_items)
-        await ctx.send("works?")
+        color = guser_information.get("embed_color", bot_settings.embed_color)
+        embeds = func_items.item_embed_generator(found_items, color)
+        paginator = func_msg_gen.Paginator(ctx, timeout=180, items=found_items, items_per_page=6,
+                                           func=func_items.item_choice_handler, close_after_func=True,
+                                           func_check=lambda m: 0 < int(m.content) < 7)
+        for embed in embeds:
+            paginator.add_page(embed)
+        await paginator.start_paginator(0)
 
     @cmd_item.command(name="add")
     @commands.has_permissions(manage_guild=True)
