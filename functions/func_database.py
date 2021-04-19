@@ -103,10 +103,10 @@ class UserDatabase(Database):
         )
         return result
 
-    async def user_use_item(self, user_id: int, server_id: int, item_id: str):
+    async def user_change_usage_amount_item(self, user_id: int, server_id: int, item_id: str, usage: int, amount: int):
         result = await self.local_db.find_one_and_update(
             {"user_id": user_id, "server_id": server_id},
-            {"$inc": {f"items.$[item].usage": 1, "items.$[item].amount": -1}},
+            {"$inc": {"items.$[item].usage": usage, "items.$[item].amount": amount}},
             array_filters=[{"item.item_id": item_id}],
             upsert=True,
             return_document=ReturnDocument.AFTER
