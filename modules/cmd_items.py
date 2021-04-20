@@ -144,7 +144,7 @@ class ServerItems(commands.Cog, name="Server Items"):
             "emoji": ""
         }
         setting_txt = {
-            "item_id": "Please input an item ID. This has to be unique.",
+            "item_id": "Please input an item ID. This has to be unique. Replace spaces with underscores.",
             "name": "Please input an item name.",
             "type": "Please select one of these item types: `role` or `text`",
             "description": "Please input an item description.",
