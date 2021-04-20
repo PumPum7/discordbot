@@ -294,6 +294,30 @@ class ServerItems(commands.Cog, name="Server Items"):
         # TODO: get the item
         await ctx.send("not implemented currently", item)
 
+    @cmd_item.command(name="give")
+    @commands.has_permissions(manage_guild=True)
+    @commands.guild_only()
+    async def cmd_give_item(self, ctx, member: discord.Member, item: str):
+        """Give an item to a user. You have to use the item id as item"""
+        await self.udb.user_add_item(member.id, ctx.guild.id, item)
+        return await ctx.send(embed=discord.Embed(
+            title="Item was added!", 
+            description=f"Successfully added the item {item} to the user {member.mention}."
+            )
+        )
+
+    @cmd_item.command(name="remove")
+    @commands.has_permissions(manage_guild=True)
+    @commands.guild_only()
+    async def cmd_remove_item(self, ctx, member: discord.Member, item: str):
+        """Remove an item from a user. You have to use the item id as item"""
+        await self.udb.remove_item(member.id, ctx.guild.id, item)
+        return await ctx.send(embed=discord.Embed(
+            title="Item was removed!", 
+            description=f"Successfully removed the item {item} from the user {member.mention}."
+            )
+        )
+
 
 def setup(bot):
     bot.add_cog(ServerItems(bot))
