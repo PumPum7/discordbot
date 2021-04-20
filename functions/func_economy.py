@@ -1,13 +1,15 @@
 from discord.ext import commands
 
-import bot_settings as bs
 from functions import func_database, func_errors
+
+import bot_settings as bs
+from data.blackjack import blackjack_emotes
 
 udb = func_database.UserDatabase()
 
 
-class GlobalMoney(commands.Converter):
-    async def convert(self, ctx, argument: int) -> float:
+class LocalBalance(commands.Converter):
+    async def convert(self, ctx, argument: int) -> tuple[int, int]:
         """
 
         :param ctx: commands.context
@@ -16,18 +18,15 @@ class GlobalMoney(commands.Converter):
         try:
             argument: int = int(argument)
         except Exception:
-            raise commands.BadArgument
+            raise commands.BadArgument()
         if argument < 1:
             raise func_errors.EconomyError("You can't use a negative amount of currency for this action!")
-        balance = await udb.get_user_information(ctx.author.id).distinct("balance")
-        if len(balance) < 1:
-            balance = 0
-        else:
-            balance = balance[0]
+        information = await ctx.get_user_information()
+        balance: int = information[1].get("balance", 0) if information else 0  # gets the local balance
         if argument > balance:
             raise func_errors.EconomyError(f"You only have {balance}{bs.currency_name}!")
         else:
-            return argument
+            return argument, balance
 
 
 class Card:
@@ -38,22 +37,23 @@ class Card:
                          9: 'Nine',
                          10: 'Ten', 11: 'Jack', 12: 'Queen', 13: 'King'}
         self.cardSuit = {'c': 'Clubs', 'h': 'Hearts', 's': 'Spades', 'd': 'Diamonds'}
+        self.emotes = blackjack_emotes.blackjack
 
     @property
     def __str__(self) -> str:
-        return self.cardName[self.rank] + " Of " + self.cardSuit[self.suit]
+        return self.emotes[f"white_{self.suit}_{self.rank}"]
 
-    def getRank(self) -> str:
+    def get_rank(self) -> str:
         """
 
         :rtype: int
         """
         return self.rank
 
-    def getSuit(self) -> str:
+    def get_suit(self) -> str:
         return self.suit
 
-    def BJValue(self) -> int:
+    def bj_value(self) -> int:
         if self.rank > 9:
             return 10
         else:
@@ -61,22 +61,23 @@ class Card:
 
 
 def bj_hand_counter(hand) -> int:
-    handCount = 0
+    hand_count = 0
     for card in hand:
-        handCount += card.BJValue()
-    return handCount
+        hand_count += card.bj_value()
+    return hand_count
 
 
 def bj_string_generator(reactions) -> str:
     bj_message = []
     for action in reactions.keys():
         bj_message.append(f"{reactions[action].capitalize()}: {action}\n")
-    return "".join(bj_message)
+    return f"{''.join(bj_message)}\nDouble down is only available if you have a score of 9, 10 or 11"
 
 
 def bj_field_generator(cur_player, hands) -> str:
-    return f"Score: {bj_hand_counter(hands[cur_player])}\n" \
-           f"Cards: {', '.join(str(i) for i in hands[cur_player])}"
+    cur_hands = hands[cur_player]
+    return f"Score: {bj_hand_counter(cur_hands)}\n" \
+           f"Cards: {', '.join((i.__str__ for i in cur_hands))}"
 
 
 def bj_handle_bot_cards(hand, deck) -> tuple:
@@ -92,21 +93,21 @@ def bj_handle_bot_cards(hand, deck) -> tuple:
     return hand, deck, busted
 
 
-def bj_winner_handler(hand, playerBusted: bool, botBusted: bool, bet: float) -> tuple:
+def bj_winner_handler(hand, player_busted: bool, bot_busted: bool, bet: float) -> tuple:
     """
 
-    :type botBusted: bool
+    :type bot_busted: bool
     :type bet: float
-    :type playerBusted: bool
+    :type player_busted: bool
     :type hand: dict
     """
     hand_human = bj_hand_counter(hand['human'])
     hand_bot = bj_hand_counter(hand['bot'])
-    if playerBusted:
+    if player_busted:
         win = False
         msg = "Busted! You lost {}" + bs.currency_name + "..."
         bet *= -1.0
-    elif botBusted:
+    elif bot_busted:
         win = True
         msg = "Dealer bust! You won {}" + bs.currency_name + " !"
     elif hand_human > hand_bot:
@@ -122,4 +123,4 @@ def bj_winner_handler(hand, playerBusted: bool, botBusted: bool, bet: float) -> 
         win = False
         msg = "You lost {}" + bs.currency_name + "..."
         bet *= -1.0
-    return msg, win, bet
+    return msg, win, int(round(bet, 0))

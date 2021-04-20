@@ -1,14 +1,17 @@
-import asyncio
 import discord
 from discord.ext import commands
-import random
-import datetime
 
-import bot_settings
+import asyncio
+import datetime
+import random
+import typing
+
 from functions import func_msg_gen, func_economy, func_database
 
+import bot_settings
 
-class Gambling(commands.Cog):
+
+class EconomyCommands(commands.Cog, name="Economy Commands"):
     def __init__(self, bot):
         self.bot = bot
         self.msg = func_msg_gen.MessageGenerator()
@@ -26,13 +29,10 @@ class Gambling(commands.Cog):
 
     @commands.command(name="balance", aliases=["wallet", "bal"])
     async def cmd_balance(self, ctx, user: discord.Member = None):
-        if not user:
-            user = ctx.author
-        balance = await self.udb.get_user_information(user.id, ctx.guild.id).distinct("balance")
-        if len(balance) < 1:
-            balance = 0
-        else:
-            balance = balance[0]
+        """Check another users balance."""
+        user = user or ctx.author
+        information = await self.udb.get_user_information(user.id, ctx.guild.id).to_list(length=1)
+        balance = information[0].get('balance', 0) if information else 0
         embed = discord.Embed(
             title=f"{user.display_name}'s balance:",
             description=f"> {balance}{self.cur}"
@@ -56,14 +56,13 @@ class Gambling(commands.Cog):
 
     @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.command(name="blackjack", aliases=["bj"])
-    async def cmd_blackjack(self, ctx, bet: func_economy.GlobalMoney):
+    async def cmd_blackjack(self, ctx, bet_: func_economy.LocalBalance):
         """Play blackjack with this command."""
-        # TODO: add emotes or even generated images for cards
-        # TODO: double down (hard 9, 10 or 11)
-        # TODO: double down:
         hand = {'bot': [], 'human': []}
         suits = ['c', 'h', 'd', 's']
         deck = []
+        bet = bet_[0]
+        balance = bet_[1]
         for suit in suits:
             for rank in range(1, 14):
                 deck.append(func_economy.Card(rank, suit))
@@ -82,19 +81,23 @@ class Gambling(commands.Cog):
         )
         start_embed.add_field(
             name="Bot",
-            value=func_economy.bj_field_generator("bot", hand)
+            value=func_economy.bj_field_generator("bot", {"bot": [hand['bot'][0]]})
         )
         msg = await self.msg.message_sender(ctx, embed=start_embed)
         for i in self.bj_reactions.keys():
-            await msg.add_reaction(i)
+            if i == "🇩" and bet * 2 > balance:
+                pass
+            else:
+                await msg.add_reaction(i)
         playing = True
-        playerBusted = False
+        player_busted = False
         while playing:
             # wait for reactions (15 sec timeout)
             try:
                 reaction, user = await self.bot.wait_for("reaction_add",
-                                                         check=lambda reaction, user:
-                                                         user == ctx.author and reaction.emoji in self.bj_reactions.keys(),
+                                                         check=lambda reaction_, user_:
+                                                         user_ == ctx.author
+                                                         and reaction_.emoji in self.bj_reactions.keys(),
                                                          timeout=20.0)
             except asyncio.TimeoutError:
                 await self.udb.edit_money(ctx.author.id, ctx.guild.id, -bet)
@@ -104,23 +107,28 @@ class Gambling(commands.Cog):
             if self.bj_reactions[reaction.emoji] == "hit":
                 hand['human'].append(deck.pop(0))
                 if func_economy.bj_hand_counter(hand['human']) > 21:
-                    playerBusted = True
+                    player_busted = True
                     playing = False
                 else:
                     await msg.remove_reaction(emoji=reaction.emoji, member=ctx.author)
                     await msg.edit(embed=self.blackjack_msg_updater(msg, hand))
             elif self.bj_reactions[reaction.emoji] == "stand":
                 playing = False
-            # TODO: add double down
+            elif self.bj_reactions[reaction.emoji] == "double down":
+                if func_economy.bj_hand_counter(hand['human']) in [11, 10, 9] and \
+                        bet * 2 < balance:
+                    hand['human'].append(deck.pop(0))
+                    bet *= 2
+                    playing = False
             else:
                 pass
         # bot hands handler
-        botBusted = False
-        if not playerBusted:
+        bot_busted = False
+        if not player_busted:
             # generates the bots hand
-            hand, deck, botBusted = func_economy.bj_handle_bot_cards(hand, deck)
+            hand, deck, bot_busted = func_economy.bj_handle_bot_cards(hand, deck)
         # handler for winner
-        text, win, bet_edited = func_economy.bj_winner_handler(hand, playerBusted, botBusted, bet)
+        text, win, bet_edited = func_economy.bj_winner_handler(hand, player_busted, bot_busted, bet)
         # sends the embeds and changes the currency
         embed = self.blackjack_msg_updater(msg, hand)
         embed.description = text.format(bet_edited)
@@ -129,25 +137,44 @@ class Gambling(commands.Cog):
         return await msg.edit(embed=embed, content=msg.content)
 
     @commands.command(name="claim", aliases=["work"])
-    async def cmd_daily(self, ctx) -> discord.Message:
-        # TODO: change to use server setting
-        amount = bot_settings.daily_amount
-        cooldown = 24
-        user = ctx.author
+    async def cmd_daily(self, ctx, user_: discord.User = None) -> discord.Message:
+        """Earn money."""
+        user = user_ or ctx.author
+        user_roles = [i.id for i in user.roles]
+
+        server_information = await ctx.get_server_information()
+        amount = server_information.get("income_daily", bot_settings.default_income["income_daily"])
+        cooldown = server_information.get("income_hourly_cooldown", bot_settings.default_income["income_daily_cooldown"])
+        role_multiplier = server_information.get("income_multiplier_roles",
+                                                 bot_settings.default_income["income_multiplier_roles"])
+        multiplier = 1
+        for role in [i for i in role_multiplier]:
+            if role["role_id"] in user_roles:
+                multiplier = role["value"]
+        amount *= multiplier
+        if user.bot:
+            return await self.msg.error_msg(ctx, "Bot accounts can't get money!")
         # check if they cna claim it again
-        last_claim = await self.udb.get_user_information(user.id, ctx.author.id).distinct("claimed_daily")
-        if not last_claim:
-            claimed_daily = False
+        information = await ctx.get_user_information()
+        try:
+            last_claim: datetime.datetime = information[1].get("claimed_daily", False)
+        except IndexError:
+            last_claim: bool = False
+        if last_claim:
+            claimed_daily = last_claim + datetime.timedelta(hours=cooldown) > datetime.datetime.utcnow()
         else:
-            claimed_daily = last_claim[0] + datetime.timedelta(hours=cooldown) > datetime.datetime.utcnow()
+            claimed_daily = False
         embed = discord.Embed()
         if not claimed_daily:
-            await self.udb.claim_daily(user.id, ctx.guild.id, amount)
-            msg = f"{amount}{self.cur} claimed!"
-            colour = discord.Color.green()
+            await self.udb.claim_daily(ctx.author.id, user.id, ctx.guild.id, amount)
+            if not user_:
+                msg = f"Successfully claimed **{amount}{self.cur}**!"
+            else:
+                msg = f"You gave **{amount}{self.cur}** to {user_}!"
+            colour = None
             next_claim = datetime.datetime.utcnow() + datetime.timedelta(hours=cooldown)
         else:
-            next_claim = (last_claim[0] + datetime.timedelta(hours=cooldown))
+            next_claim = last_claim + datetime.timedelta(hours=cooldown)
             colour = discord.Color.red()
             embed.title = ""
             msg = "You have already claimed your credits."
@@ -156,6 +183,78 @@ class Gambling(commands.Cog):
         embed.description = msg
         return await self.msg.message_sender(ctx, embed, color=colour)
 
+    @commands.command(name="give")
+    async def cmd_give(self, ctx, user: discord.Member, amount: func_economy.LocalBalance):
+        """Transfer your money to someone else."""
+        if user.bot:
+            await self.msg.error_msg(ctx, "You can't transfer money to a bot!")
+            return
+        amount, balance = amount
+
+        server_information: dict = await ctx.get_server_information()
+        user_roles: list = [i.id for i in ctx.author.roles]
+        allowed_trade: bool = False
+        # allowed roles overwrites blacklisted roles
+        allowed_roles = server_information.get("income_give_allowed_roles", [])
+        if allowed_roles:
+            for role in allowed_roles:
+                role_id = role.get("role_id", 0)
+                if role_id in user_roles:
+                    allowed_trade = True
+                    break
+        # blacklist should overwrite the whitelist
+        blacklisted_roles = server_information.get("income_give_disallowed_roles", [])
+        if blacklisted_roles:
+            for role in blacklisted_roles:
+                role_id = role.get("role_id", 0)
+                if role_id in user_roles:
+                    return await self.msg.message_sender(
+                        ctx, discord.Embed(
+                            title="You are not allowed to transfer credits!",
+                            description=f"The role <@&{role_id}> is not allowed to transfer credits!",
+                        )
+                    )
+        if not allowed_trade and allowed_roles:
+            return await self.msg.message_sender(
+                ctx, discord.Embed(
+                    title="You are not allowed to transfer credits!",
+                    description=f"You are missing an allowed role."
+                )
+            )
+        tax = server_information.get("income_tax_roles", 0)
+        if type(tax) == list:
+            for role in tax:
+                if role.get("role_id", 0) in user_roles:
+                    tax = role.get("value", tax)
+        if type(tax) == list:
+            tax = 0
+        taxed_amount = amount - int(amount * (tax / 100))  # remove tax percentage from amount
+        confirmation_num = str(random.randint(1000, 9999))
+        confirm_embed = discord.Embed(
+            title=f"Confirm the transfer of {amount} credits",
+            description=f"Receiver: {user.mention}\n"
+                        f"Amount after {tax}% tax: {taxed_amount}\n"
+                        f"Reply with `{confirmation_num}` to confirm the transfer or `exit` to cancel the transfer!"
+        )
+        confirmation_msg = await self.msg.message_sender(ctx, confirm_embed, discord.Color.green())
+        confirm_result = await self.bot.wait_for(
+            "message", timeout=60, check=lambda m: (m.content == confirmation_num or m.content.lower() == "exit")
+                                                   and m.author == ctx.author
+        )
+        if confirm_result.content.lower() == "exit":
+            await confirmation_msg.delete()
+            return await self.msg.message_sender(ctx, discord.Embed(title="Successfully cancelled the trade!"))
+
+        await self.udb.edit_money(ctx.author.id, ctx.guild.id, -taxed_amount)
+        receiver_balance = await self.udb.edit_money(user.id, ctx.guild.id, taxed_amount)
+        receiver_balance = receiver_balance.get("balance", amount)
+        embed = discord.Embed(
+            title=f"Successfully transferred {taxed_amount} credits!",
+            description=f"{ctx.author.name}'s balance: {balance} credits\n"
+                        f"{user.name}'s balance: {receiver_balance} credits"
+        )
+        return await self.msg.message_sender(ctx, embed)
+
 
 def setup(bot):
-    bot.add_cog(Gambling(bot))
+    bot.add_cog(EconomyCommands(bot))
