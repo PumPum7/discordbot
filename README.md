@@ -69,3 +69,6 @@ digits = {
         }
 
 ```
+
+3. Download the required python libraries from the requirements.txt file 
+4. Run the bot, it will automatically load all files starting with cmd
