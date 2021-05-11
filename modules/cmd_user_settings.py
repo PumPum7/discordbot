@@ -23,7 +23,10 @@ class UserSettings(commands.Cog, name="User Settings"):
         try:
             user_information = user_information[0]
             # deletes user id and object id
-            del user_information['_id']
+            try:
+                del user_information['_id']
+            except KeyError:
+                pass
             del user_information['user_id']
         except IndexError:
             return await ctx.send_help(self.cmd_group_set)
