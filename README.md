@@ -70,5 +70,8 @@ digits = {
 
 ```
 
-3. Download the required python libraries from the requirements.txt file 
-4. Run the bot, it will automatically load all files starting with cmd
+3. Download the required python libraries from the requirements.txt file
+4. Download the grpc backend: _will be added once the bot is completely ready_
+5. Run the bot, it will automatically load all files starting with cmd
+
+> This bot is not ready for production usage, which also is the usage why the GRPC files and the GRPC client are not open source yet.
