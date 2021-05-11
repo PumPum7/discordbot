@@ -24,33 +24,33 @@ class ListenerTest(commands.Cog):
         self.cache = await aioredis.create_redis_pool(bot_settings.redis_settings["url"], db=0)
         return
 
-    # @commands.Cog.listener("on_command_error")
-    # async def error_handler(self, ctx, error):
-    #     # no error handler if there is a local error handler
-    #     if hasattr(ctx.command, 'on_error'):
-    #         return
-    #     cog = ctx.cog
-    #     if cog:
-    #         if cog._get_overridden_method(cog.cog_command_error) is not None:
-    #             return
-    #     error_ = getattr(error, 'original', error)
-    #     ignored = (commands.CommandNotFound, commands.NotOwner, commands.DisabledCommand, commands.NoPrivateMessage)
-    #     if isinstance(error_, ignored):
-    #         return
-    #     elif isinstance(error, (commands.MissingRequiredArgument, commands.BadArgument, commands.MemberNotFound)):
-    #         msg = f"Please make sure you have specified all required arguments correctly! \n" \
-    #               f"Use `{ctx.prefix}help {ctx.command.qualified_name}` for more information."
-    #     elif isinstance(error, commands.CommandOnCooldown):
-    #         msg = str(error)
-    #     elif isinstance(error, (func_errors.EconomyError, func_errors.WrongDateFormat, func_errors.DuplicateItem)):
-    #         msg = str(error)
-    #     elif isinstance(error, func_errors.TooManyItems):
-    #         msg = str(error) + f"\nIf you want to add more items, remove another item or " \
-    #                            f"consider donate here: {bot_settings.subscription_website}"
-    #     else:
-    #         self.bot.logger.error(f"An errror occured in the {ctx.command} command: {error}")
-    #         msg = "The error has been reported."
-    #     await self.msg_generator.error_msg(ctx, msg)
+    @commands.Cog.listener("on_command_error")
+    async def error_handler(self, ctx, error):
+        # no error handler if there is a local error handler
+        if hasattr(ctx.command, 'on_error'):
+            return
+        cog = ctx.cog
+        if cog:
+            if cog._get_overridden_method(cog.cog_command_error) is not None:
+                return
+        error_ = getattr(error, 'original', error)
+        ignored = (commands.CommandNotFound, commands.NotOwner, commands.DisabledCommand, commands.NoPrivateMessage)
+        if isinstance(error_, ignored):
+            return
+        elif isinstance(error, (commands.MissingRequiredArgument, commands.BadArgument, commands.MemberNotFound)):
+            msg = f"Please make sure you have specified all required arguments correctly! \n" \
+                  f"Use `{ctx.prefix}help {ctx.command.qualified_name}` for more information."
+        elif isinstance(error, commands.CommandOnCooldown):
+            msg = str(error)
+        elif isinstance(error, (func_errors.EconomyError, func_errors.WrongDateFormat, func_errors.DuplicateItem)):
+            msg = str(error)
+        elif isinstance(error, func_errors.TooManyItems):
+            msg = str(error) + f"\nIf you want to add more items, remove another item or " \
+                               f"consider donate here: {bot_settings.subscription_website}"
+        else:
+            self.bot.logger.error(f"An errror occured in the {ctx.command} command: {error}")
+            msg = "The error has been reported."
+        await self.msg_generator.error_msg(ctx, msg)
 
     @commands.Cog.listener("on_message")
     async def on_message_handlers(self, message):
@@ -79,7 +79,8 @@ class ListenerTest(commands.Cog):
         exp_amount = server_information.get("exp_amount", bot_settings.default_exp["exp_amount"])
         cooldown = server_information.get("exp_cooldown", bot_settings.default_exp["exp_cooldown"])
         roles = server_information.get("exp_level_roles", bot_settings.default_exp["exp_level_roles"])
-        roles_blacklisted = server_information.get("exp_blacklist_roles", bot_settings.default_exp["exp_blacklist_roles"])
+        roles_blacklisted = server_information.get("exp_blacklist_roles",
+                                                   bot_settings.default_exp["exp_blacklist_roles"])
         user_roles = [i.id for i in message.author.roles]
         if [i for i in roles_blacklisted if i["role_id"] in user_roles]:
             return
