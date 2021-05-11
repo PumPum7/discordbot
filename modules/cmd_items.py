@@ -275,10 +275,10 @@ class ServerItems(commands.Cog, name="Server Items"):
         paginator.add_pages(embeds)
         await paginator.start_paginator()
 
-    @cmd_item.command(name="remove", aliases=["delete"])
+    @cmd_item.command(name="delete")
     @commands.has_permissions(manage_guild=True)
     @commands.guild_only()
-    async def cmd_remove_item(self, ctx, item: str):
+    async def cmd_delete_item(self, ctx, item: str):
         """Delete a specified item."""
         result = await self.idb.delete_item(ctx.guild.id, item_id=item)
         result = result.deleted_count
