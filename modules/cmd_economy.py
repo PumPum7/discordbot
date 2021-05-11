@@ -27,7 +27,8 @@ class EconomyCommands(commands.Cog, name="Economy Commands"):
         self.udb = func_database.UserDatabase()
         self.cur = bot_settings.currency_name  # TODO: change to use server setting
 
-    @commands.command(name="balance", aliases=["wallet", "bal"])
+    @commands.group(name="balance", aliases=["wallet", "bal"], invoke_without_command=True)
+    @commands.guild_only()
     async def cmd_balance(self, ctx, user: discord.Member = None):
         """Check another users balance."""
         user = user or ctx.author
@@ -38,6 +39,13 @@ class EconomyCommands(commands.Cog, name="Economy Commands"):
             description=f"> {balance}{self.cur}"
         )
         await self.msg.message_sender(ctx, embed)
+
+    @cmd_balance.command(name="edit")
+    @commands.has_permissions(manage_guild=True)
+    @commands.guild_only()
+    async def cmd_edit_balance(self, ctx, user: discord.Member, amount: int):
+        information = await self.udb.edit_money(user.id, ctx.guild.id, amount)
+        await ctx.send(f"{user.display_name}'s new balance: {information.get('balance', 0)}")
 
     @staticmethod
     def blackjack_msg_updater(msg: discord.Message, hand: dict) -> discord.Embed:
@@ -56,6 +64,7 @@ class EconomyCommands(commands.Cog, name="Economy Commands"):
 
     @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.command(name="blackjack", aliases=["bj"])
+    @commands.guild_only()
     async def cmd_blackjack(self, ctx, bet_: func_economy.LocalBalance):
         """Play blackjack with this command."""
         hand = {'bot': [], 'human': []}
@@ -137,14 +146,15 @@ class EconomyCommands(commands.Cog, name="Economy Commands"):
         return await msg.edit(embed=embed, content=msg.content)
 
     @commands.command(name="claim", aliases=["work"])
-    async def cmd_daily(self, ctx, user_: discord.User = None) -> discord.Message:
+    @commands.guild_only()
+    async def cmd_daily(self, ctx, user_: discord.Member = None) -> discord.Message:
         """Earn money."""
         user = user_ or ctx.author
         user_roles = [i.id for i in user.roles]
 
         server_information = await ctx.get_server_information()
         amount = server_information.get("income_daily", bot_settings.default_income["income_daily"])
-        cooldown = server_information.get("income_hourly_cooldown", bot_settings.default_income["income_daily_cooldown"])
+        cooldown = server_information.get("income_hourly_cooldown", bot_settings.default_income["income_hourly_cooldown"])
         role_multiplier = server_information.get("income_multiplier_roles",
                                                  bot_settings.default_income["income_multiplier_roles"])
         multiplier = 1
@@ -184,6 +194,7 @@ class EconomyCommands(commands.Cog, name="Economy Commands"):
         return await self.msg.message_sender(ctx, embed, color=colour)
 
     @commands.command(name="give")
+    @commands.guild_only()
     async def cmd_give(self, ctx, user: discord.Member, amount: func_economy.LocalBalance):
         """Transfer your money to someone else."""
         if user.bot:
